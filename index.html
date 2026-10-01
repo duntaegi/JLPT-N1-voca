@@ -51,6 +51,17 @@ button:focus-visible{outline:3px solid var(--brown2);outline-offset:2px}
 .screen.on{display:flex}
 .bar{background:var(--bar);color:var(--onbar);padding:12px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
 .bar h2{margin:0;font-size:17px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rateBtn{flex:none;min-width:52px;height:32px;padding:0 10px;border-radius:16px;background:rgba(255,255,255,.55);color:var(--onbar);font-size:14px;font-weight:800;border:1.5px solid rgba(255,255,255,.8)}
+.rateBtn:active{transform:translateY(1px)}
+#ratePop{position:fixed;z-index:35;width:min(320px,calc(100vw - 16px));background:var(--paper);border:2px solid var(--line);border-radius:16px;
+  padding:14px 16px 10px;box-shadow:0 8px 24px rgba(0,0,0,.18);display:none;touch-action:pan-x}
+#ratePop.on{display:block}
+#ratePop .rpTop{display:flex;justify-content:space-between;align-items:center;font-size:15px;margin-bottom:6px}
+#ratePop #rateVal{font-size:20px;font-weight:800;color:var(--bar2)}
+#rateRange{-webkit-appearance:none;appearance:none;width:100%;height:36px;background:transparent;margin:0;touch-action:pan-x}
+#rateRange::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:var(--line)}
+#rateRange::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:var(--cta);border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);margin-top:-10px}
+#ratePop .rpTicks{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);padding:0 4px}
 .icon{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-size:19px;color:var(--onbar);flex:none}
 .icon:active{background:rgba(15,53,80,.1)}
 .wrap{padding:16px;flex:1;width:100%;max-width:680px;margin:0 auto}
@@ -435,6 +446,7 @@ html.wlock,html.wlock body{overflow:hidden}
   <div class="bar">
     <button class="icon" onclick="quitQuiz()" aria-label="그만하기">✕</button>
     <h2 id="qMode"></h2>
+    <button class="rateBtn" onclick="openRate(this)" aria-label="발음 속도">1×</button>
     <button class="icon" id="sndBtn" onclick="toggleSound()" aria-label="소리 켜기/끄기">🔔</button>
   </div>
   <div class="qtop">
@@ -461,6 +473,7 @@ html.wlock,html.wlock body{overflow:hidden}
     <button class="icon" onclick="quitFlash()" aria-label="그만하기">✕</button>
     <h2 id="fTitle">카드 뒤집기</h2>
     <span class="fnum" id="fNum">1 / 1</span>
+    <button class="rateBtn" onclick="openRate(this)" aria-label="발음 속도">1×</button>
   </div>
   <div class="fwrap"><div class="ftrack"><i id="fBar" style="width:0"></i></div></div>
   <div class="wrap" id="fMain">
@@ -508,6 +521,7 @@ html.wlock,html.wlock body{overflow:hidden}
   <div class="bar">
     <button class="icon" onclick="closeWrite()" aria-label="닫기">✕</button>
     <h2>써 보기</h2>
+    <button class="rateBtn" onclick="openRate(this)" aria-label="발음 속도">1×</button>
     <button class="icon" id="wSpeak" aria-label="발음 듣기">🔊</button>
   </div>
   <div class="whead" id="wHead"></div>
@@ -636,12 +650,38 @@ function stopVoice(){
   try { if (window.Android && Android.stop) Android.stop(); } catch(e){}
   try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch(e){}
 }
+/* 발음 속도: 1배속 = 지금까지의 기본 속도. 버튼을 누르면 막대로 조절 */
+let speechRate = (() => { const r = +get('jv2_rate', 1); return r >= 1 && r <= 3 ? Math.round(r * 4) / 4 : 1; })();
+const rateLabel = r => (Number.isInteger(r) ? r : r.toFixed(2).replace(/0$/, '')) + '×';
+function renderRate(){ document.querySelectorAll('.rateBtn').forEach(b => b.textContent = rateLabel(speechRate)); const v = $('#rateVal'); if (v) v.textContent = rateLabel(speechRate).replace('×', '배속'); }
+function openRate(btn){
+  let pop = $('#ratePop');
+  if (!pop){
+    pop = document.createElement('div'); pop.id = 'ratePop';
+    pop.innerHTML = `<div class="rpTop"><b>발음 속도</b><span id="rateVal"></span></div>
+      <input type="range" id="rateRange" min="1" max="3" step="0.25" aria-label="발음 속도">
+      <div class="rpTicks"><span>1×</span><span>1.5×</span><span>2×</span><span>2.5×</span><span>3×</span></div>`;
+    document.body.appendChild(pop);
+    const rg = $('#rateRange');
+    rg.addEventListener('input', () => { speechRate = +rg.value; put('jv2_rate', speechRate); renderRate(); });
+    rg.addEventListener('change', () => speak('はやさ'));   // 손을 떼면 그 속도로 한 번 들려줌
+    // 바깥을 누르면 닫힘
+    document.addEventListener('pointerdown', e => { if (pop.classList.contains('on') && !pop.contains(e.target) && !e.target.closest('.rateBtn')){ pop.classList.remove('on'); if (e.target === wCv){ e.stopPropagation(); e.preventDefault(); } } }, true);  // 닫으려고 누른 터치가 선으로 그려지지 않게
+  }
+  if (pop.classList.contains('on')){ pop.classList.remove('on'); return; }
+  $('#rateRange').value = speechRate; renderRate();
+  const r = btn.getBoundingClientRect();
+  pop.style.top = (r.bottom + 8) + 'px';
+  pop.style.right = Math.max(8, window.innerWidth - r.right - 40) + 'px';
+  pop.classList.add('on');
+}
+function closeRate(){ const p = $('#ratePop'); if (p) p.classList.remove('on'); }
 function speak(text){
   stopVoice();
   try {
     if (window.Android && Android.canSpeak()){ Android.speak(text); return; }
     if (window.speechSynthesis){
-      const u = new SpeechSynthesisUtterance(text); u.lang = 'ja-JP'; u.rate = 0.9;
+      const u = new SpeechSynthesisUtterance(text); u.lang = 'ja-JP'; u.rate = Math.min(10, 0.9 * speechRate);
       const v = speechSynthesis.getVoices().find(v => /^ja/i.test(v.lang)); if (v) u.voice = v;
       speechSynthesis.cancel(); speechSynthesis.speak(u); return;
     }
@@ -730,7 +770,7 @@ async function pickRange(title){
 
 /* ---------- navigation ---------- */
 let curDay = null;
-function show(id){ stopSpeak(); if ($('#write').classList.contains('on')) closeWrite(); document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id)); window.scrollTo(0, 0); }
+function show(id){ stopSpeak(); closeRate(); if ($('#write').classList.contains('on')) closeWrite(); document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id)); window.scrollTo(0, 0); }
 function goHome(){ renderHome(); show('home'); }
 window.handleBack = function(){
   if ($('#modal').classList.contains('open')){ closeModal(); return true; }
@@ -1425,7 +1465,7 @@ function openWrite(w){
   $('#wSpeak').onclick = () => speak(w.kana.split('/')[0]);
   renderWrite();
 }
-function closeWrite(){ WR.cur = null; $('#write').classList.remove('on'); document.documentElement.classList.remove('wlock'); }
+function closeWrite(){ closeRate(); WR.cur = null; $('#write').classList.remove('on'); document.documentElement.classList.remove('wlock'); }
 function saveWritePref(){ put('jv2_write', {mode: WR.mode}); }
 function renderWrite(){
   const w = WR.w;
@@ -1597,7 +1637,7 @@ wCv.addEventListener('touchmove', e => {
   if (ty === 'touchend') wAddPt(wTP(t));
   wEnd();
 }, {passive: true}));
-$('#write').addEventListener('touchmove', e => { if (e.touches.length < 2) e.preventDefault(); }, {passive: false});  // 화면이 밀리지 않도록 (두 손가락은 허용 → 확대돼도 되돌릴 수 있게)
+$('#write').addEventListener('touchmove', e => { if (e.touches.length < 2 && !e.target.closest('input')) e.preventDefault(); }, {passive: false});  // 화면이 밀리지 않도록 (두 손가락은 허용 → 확대돼도 되돌릴 수 있게)
 // 펜으로 버튼을 누르면 살짝 미끄러져서 click이 안 생기는 경우가 있음 → 손을 뗄 때 바로 누른 것으로 처리
 (() => {
   const root = $('#write'); let down = null, firedAt = 0;
@@ -1626,7 +1666,7 @@ let wRT; window.addEventListener('resize', () => { cancelAnimationFrame(wRT); wR
 // 사파리는 user-scalable=no를 무시해서 따로 막음. 이미 확대된 상태라면 축소는 되도록 둠
 ['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => { if (!window.visualViewport || visualViewport.scale <= 1.01) e.preventDefault(); }, {passive: false}));
 document.addEventListener('dblclick', e => e.preventDefault(), {passive: false});
-load(); renderHome();
+load(); renderRate(); renderHome();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !/claude\.ai|claudeusercontent/.test(location.host)) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
