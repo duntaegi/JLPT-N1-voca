@@ -893,26 +893,143 @@ function quitQuiz(){
 /* ---------- quiz ---------- */
 let Q = {key:'', cur:null, answered:false};
 
+/* 헷갈리는 보기 만들기: 4,045단어 전체에서 실제로 있는 단어만 골라, 정답과 가장 비슷한 순서로 씀 (지어낸 보기는 없음) */
+const kataToHira = t => t.replace(/[\u30A1-\u30F6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+const rdCache = new Map(), mtCache = new Map();
+const readings = w => { const k = w.kana || ''; let r = rdCache.get(k); if (!r){ r = String(k).split(/[\/／]/).map(t => kataToHira(t.trim())).filter(Boolean); rdCache.set(k, r); } return r; };
+const baseKana = c => c.normalize('NFD').replace(/[\u3099\u309A]/g, '');   // が→か, ぱ→は
+const SMALL = {'ぁ':'あ','ぃ':'い','ぅ':'う','ぇ':'え','ぉ':'お','っ':'つ','ゃ':'や','ゅ':'ゆ','ょ':'よ','ゎ':'わ'};
+const big = c => SMALL[c] || c;
+function subCost(a, b){
+  if (a === b) return 0;
+  if (baseKana(a) === baseKana(b)) return .35;          // 탁음·반탁음 차이
+  if (big(a) === big(b)) return .35;                    // 작은 글자/큰 글자
+  return 1;
+}
+function insCost(c){
+  if ('ういーおえ'.includes(c)) return .35;            // 장음 있음/없음
+  if (c === 'っ') return .35;                           // 촉음 있음/없음
+  if ('んゃゅょ'.includes(c)) return .5;
+  return 1;
+}
+function kanaDist(x, y){   // 헷갈리는 차이는 싸게 매긴 편집 거리
+  const a = Array.from(x), b = Array.from(y), m = a.length, n = b.length;
+  let prev = [0]; for (let j = 1; j <= n; j++) prev[j] = prev[j - 1] + insCost(b[j - 1]);
+  for (let i = 1; i <= m; i++){
+    const cur = [prev[0] + insCost(a[i - 1])];
+    for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + insCost(a[i - 1]), cur[j - 1] + insCost(b[j - 1]), prev[j - 1] + subCost(a[i - 1], b[j - 1]));
+    prev = cur;
+  }
+  return prev[n];
+}
+const isKata = t => /[\u30A1-\u30FA]/.test(t);
+function readDist(w, o){   // 읽는 법이 얼마나 비슷한가 (작을수록 비슷)
+  let best = 99;
+  for (const x of readings(w)) for (const y of readings(o)) best = Math.min(best, kanaDist(x, y));
+  return best + (isKata(w.kana) !== isKata(o.kana) ? 1.5 : 0);
+}
+function kanjiDist(w, o){  // 한자 표기가 얼마나 비슷한가
+  if (!w.kanji || !o.kanji) return 3;
+  const a = Array.from(w.kanji), b = Array.from(o.kanji);
+  let same = 0; a.forEach((c, i) => { if (/[\u4E00-\u9FFF々]/.test(c) && b.includes(c)) same += (b[i] === c ? 1.2 : 1); });
+  return 3 - Math.min(3, same * 1.5) + Math.abs(a.length - b.length) * .4;
+}
+const meanTokens = m => { let r = mtCache.get(m); if (!r){ r = String(m || '').split(/[,，、·\/()（）~]+|\s+/).map(t => t.trim()).filter(t => t.length >= 2); mtCache.set(m, r); } return r; };
+function meaningOverlap(x, y){ const A = new Set(meanTokens(x)); return meanTokens(y).some(t => A.has(t)); }
+function sameReading(w, o){ const R = new Set(readings(w)); return readings(o).some(r => R.has(r)); }
+
+/* 가짜 읽기 만들기 (JLPT 読み 문제처럼): 장음·촉음·탁음·요음을 살짝 바꾼 읽기 */
+const hiraToKata = t => t.replace(/[\u3041-\u3096]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60));
+const VOW = {};
+['あかさたなはまやらわがざだばぱぁゃ', 'いきしちにひみりぎじぢびぴぃ', 'うくすつぬふむゆるぐずづぶぷぅゅっ', 'えけせてねへめれげぜでべぺぇ', 'おこそとのほもよろをごぞどぼぽぉょ']
+  .forEach((row, v) => Array.from(row).forEach(c => { VOW[c] = 'aiueo'[v]; }));
+const DAK = {}; ['かが','きぎ','くぐ','けげ','こご','さざ','しじ','すず','せぜ','そぞ','ただ','ちぢ','つづ','てで','とど','はば','ひび','ふぶ','へべ','ほぼ'].forEach(([a, b]) => { DAK[a] = b; DAK[b] = a; });
+['ばぱ','びぴ','ぶぷ','べぺ','ぼぽ'].forEach(([a, b]) => { DAK[b] = a; });
+const SOKU_OK = c => /[かきくけこさしすせそたちつてとぱぴぷぺぽ]/.test(c);
+function fakeEdits(r, kata){   // r: 히라가나. 한 번 바꾼 읽기 목록
+  const a = Array.from(r), out = [], add = x => { if (x && x !== r) out.push(x); };
+  const LONG = kata ? 'ー' : null;
+  for (let i = 0; i < a.length; i++){
+    const c = a[i], prev = a[i - 1], next = a[i + 1];
+    const pv = prev && VOW[prev];
+    // 장음 빼기
+    if (i > 0 && (c === 'ー' || (!kata && ((c === 'う' && (pv === 'o' || pv === 'u')) || (c === 'い' && pv === 'e'))))) add([...a.slice(0, i), ...a.slice(i + 1)].join(''));
+    // 장음 넣기
+    const v = VOW[c];
+    const isLongMark = c === 'ー' || (c === 'う' && (pv === 'o' || pv === 'u')) || (c === 'い' && pv === 'e');
+    if (v && c !== 'っ' && !isLongMark && next && (kata || i + 2 < a.length) && !/[ーうい っんンゃゅょぁぃぅぇぉ]/.test(next)){   // 끝이나 ん·っ 앞에는 안 넣음
+      const ins = kata ? LONG : (v === 'o' || v === 'u' ? 'う' : null);
+      if (ins) add([...a.slice(0, i + 1), ins, ...a.slice(i + 1)].join(''));
+    }
+    // 촉음 빼기 / 넣기
+    if (c === 'っ') add([...a.slice(0, i), ...a.slice(i + 1)].join(''));
+    else if (i > 0 && i < a.length - 1 && SOKU_OK(c) && !/[っんーういくきつち]/.test(prev)) add([...a.slice(0, i), 'っ', ...a.slice(i)].join(''));
+    // く·き·つ·ち ↔ っ (がくこう/がっこう 같은 헷갈림)
+    if (/[くきつち]/.test(c) && next && SOKU_OK(next)) add([...a.slice(0, i), 'っ', ...a.slice(i + 1)].join(''));
+    if (c === 'っ' && next) for (const r of ['つ', 'く']) add([...a.slice(0, i), r, ...a.slice(i + 1)].join(''));
+    // 탁음 바꾸기
+    if (DAK[c] && !/[ちつぢづ]/.test(c)) add([...a.slice(0, i), DAK[c], ...a.slice(i + 1)].join(''));
+    // 요음: ょ↔ゅ, 빼기
+    if (c === 'ょ' || c === 'ゅ') add([...a.slice(0, i), c === 'ょ' ? 'ゅ' : 'ょ', ...a.slice(i + 1)].join(''));
+  }
+  const made = (x, t) => x.includes(t) && !r.includes(t);
+  return [...new Set(out)].filter(x => !/^[っんーゃゅょ]/.test(x) && !/っ$|っっ|ーー|っー|ーっ|んっ/.test(x) && !['うう', 'いい', 'えい', 'うっ', 'ーン', 'ーっ', 'くく', 'つつ', 'きき', 'ちち', 'つっ', 'くっ', 'きっ', 'ちっ'].some(t => made(x, t)));
+}
+function fakeReadings(w, need){
+  const kata = isKata(w.kana), parts = String(w.kana).split(/[\/／]/).map(t => t.trim());
+  const real = new Set(readings(w));
+  const conv = x => kata ? hiraToKata(x) : x;
+  const one = r => fakeEdits(r, kata);
+  // 첫 번째 읽기 기준으로 만들고, 읽기가 여러 개면 나머지도 하나씩 바꿔서 이어 붙임
+  const base = kataToHira(parts[0]);
+  const singles = shuffle(one(base)), doubles = [];
+  for (const x of singles.slice(0, 8)) for (const y of one(x)) if (y !== base && !singles.includes(y)) doubles.push(y);
+  const order = [...singles.slice(0, 2), ...shuffle([...new Set(doubles)]).slice(0, 2), ...singles.slice(2)];
+  const res = [];
+  for (const f of order){
+    if (real.has(f) || res.includes(f)) continue;
+    if (Math.abs(Array.from(f).length - Array.from(base).length) > 1) continue;
+    let text = conv(f);
+    if (parts.length > 1) text = [text, ...parts.slice(1).map(p => { const e = one(kataToHira(p)); return e.length ? conv(e[rnd(e.length)]) : p; })].join('/');
+    if (text === w.kana) continue;
+    res.push(text);
+    if (res.length >= need) break;
+  }
+  return res;
+}
+const glen = t => Array.from(String(t || '')).length;
+
 function buildQuestion(w){
   const fields = ['kana', 'meaning']; if (w.kanji) fields.unshift('kanji');
   const pairs = [];
   fields.forEach(p => fields.forEach(a => { if (p !== a) pairs.push([p, a]); }));
   for (const [p, a] of shuffle(pairs)){
-    const seen = new Set([w[a]]);
-    let cands = [];
-    // 같은 일차 단어를 먼저 보기로 사용 → 헷갈리는 보기
-    const pool = shuffle(dayWords(w.day).slice()).concat(shuffle(words.slice()));
-    for (const o of pool){
-      if (o.id === w.id || !o[a] || o[p] === w[p] || seen.has(o[a])) continue;
-      seen.add(o[a]); cands.push(o);
-      if (cands.length >= 60) break;
+    const L = glen(w[a]), scored = [];
+    for (const o of words){
+      if (o.id === w.id || !o[a] || o[a] === w[a]) continue;
+      // 정답이 두 개가 되는 보기는 빼기
+      if (sameReading(w, o)) continue;                                     // 같은 히라가나(한자만 다름)
+      if (o.kanji && w.kanji && o.kanji === w.kanji) continue;
+      if (meaningOverlap(w.meaning, o.meaning)) continue;                  // 뜻이 겹침
+      const dl = Math.abs(glen(o[a]) - L);
+      let d;
+      if (a === 'kana'){ d = readDist(w, o); if (d > .75 || dl > 1) continue; d += dl * .3; }   // 정말 헷갈리는 실제 단어만
+      else if (a === 'kanji'){ if (dl > 1) continue; d = kanjiDist(w, o) + readDist(w, o) * .4 + dl * 2; }
+      else d = Math.min(kanjiDist(w, o), readDist(w, o) * .8) + readDist(w, o) * .2 + Math.min(dl, 6) * .08;
+      if ((o.pos || 'n') !== (w.pos || 'n')) d += .6;                        // 같은 품사일수록 헷갈림
+      scored.push({o, d: d + Math.random() * .25});                        // 비슷한 것끼리는 매번 조금씩 바뀌게
     }
-    if (cands.length < 3) continue;
-    if (a !== 'meaning'){
-      const L = w[a].length;
-      cands = cands.sort((x, y) => Math.abs(x[a].length - L) - Math.abs(y[a].length - L)).slice(0, 8);
+    scored.sort((x, y) => x.d - y.d);
+    const picks = [], texts = [], seen = new Set([w[a]]);
+    for (const {o} of scored){
+      if (seen.has(o[a]) || picks.some(q => sameReading(q, o) || meaningOverlap(q.meaning, o.meaning))) continue;
+      seen.add(o[a]); picks.push(o); texts.push(o[a]);
+      if (texts.length === 3) break;
     }
-    const opts = shuffle([w[a], ...shuffle(cands).slice(0, 3).map(o => o[a])]);
+    // 히라가나 보기: 실제 단어가 모자라면 가짜 읽기로 채움
+    if (a === 'kana' && texts.length < 3) for (const f of fakeReadings(w, 6)){ if (texts.length >= 3) break; if (!seen.has(f)){ seen.add(f); texts.push(f); } }
+    if (texts.length < 3) continue;
+    const opts = shuffle([w[a], ...texts]);
     return {w, p, a, opts, correct: opts.indexOf(w[a])};
   }
   return null;
@@ -1302,14 +1419,14 @@ function writeText(w, mode){
 function openWrite(w){
   stopSpeak();
   const pref = get('jv2_write', {}) || {};
-  WR.w = w; WR.mode = w.kanji ? (pref.mode || 'kanji') : 'kana'; WR.guide = pref.guide !== false;
+  WR.w = w; WR.mode = w.kanji ? (pref.mode || 'kanji') : 'kana'; WR.guide = true;  // 새 단어는 항상 견본이 보이는 상태로 시작
   WR.strokes = {}; WR.page = 0; WR.cur = null;
   $('#write').classList.add('on'); document.documentElement.classList.add('wlock');
   $('#wSpeak').onclick = () => speak(w.kana.split('/')[0]);
   renderWrite();
 }
 function closeWrite(){ WR.cur = null; $('#write').classList.remove('on'); document.documentElement.classList.remove('wlock'); }
-function saveWritePref(){ put('jv2_write', {mode: WR.mode, guide: WR.guide}); }
+function saveWritePref(){ put('jv2_write', {mode: WR.mode}); }
 function renderWrite(){
   const w = WR.w;
   WR.chars = Array.from(writeText(w, WR.mode)).filter(c => c.trim());
