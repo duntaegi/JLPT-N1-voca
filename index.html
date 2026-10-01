@@ -986,10 +986,11 @@ const VOW = {};
 const DAK = {}; ['かが','きぎ','くぐ','けげ','こご','さざ','しじ','すず','せぜ','そぞ','ただ','ちぢ','つづ','てで','とど','はば','ひび','ふぶ','へべ','ほぼ'].forEach(([a, b]) => { DAK[a] = b; DAK[b] = a; });
 ['ばぱ','びぴ','ぶぷ','べぺ','ぼぽ'].forEach(([a, b]) => { DAK[b] = a; });
 const SOKU_OK = c => /[かきくけこさしすせそたちつてとぱぴぷぺぽ]/.test(c);
-function fakeEdits(r, kata){   // r: 히라가나. 한 번 바꾼 읽기 목록
+function fakeEdits(r, kata, lo = 0, hi = Infinity, orig = r){   // r: 히라가나. 한 번 바꾼 읽기 목록. lo~hi 사이 글자만 바꿈 (오쿠리가나는 그대로)
   const a = Array.from(r), out = [], add = x => { if (x && x !== r) out.push(x); };
+  hi = Math.min(hi, a.length);
   const LONG = kata ? 'ー' : null;
-  for (let i = 0; i < a.length; i++){
+  for (let i = lo; i < hi; i++){
     const c = a[i], prev = a[i - 1], next = a[i + 1];
     const pv = prev && VOW[prev];
     // 장음 빼기
@@ -999,31 +1000,41 @@ function fakeEdits(r, kata){   // r: 히라가나. 한 번 바꾼 읽기 목록
     const isLongMark = c === 'ー' || (c === 'う' && (pv === 'o' || pv === 'u')) || (c === 'い' && pv === 'e');
     if (v && c !== 'っ' && !isLongMark && next && (kata || i + 2 < a.length) && !/[ーうい っんンゃゅょぁぃぅぇぉ]/.test(next)){   // 끝이나 ん·っ 앞에는 안 넣음
       const ins = kata ? LONG : (v === 'o' || v === 'u' ? 'う' : null);
-      if (ins) add([...a.slice(0, i + 1), ins, ...a.slice(i + 1)].join(''));
+      if (ins && i + 1 < hi) add([...a.slice(0, i + 1), ins, ...a.slice(i + 1)].join(''));
     }
     // 촉음 빼기 / 넣기
     if (c === 'っ') add([...a.slice(0, i), ...a.slice(i + 1)].join(''));
-    else if (i > 0 && i < a.length - 1 && SOKU_OK(c) && !/[っんーういくきつち]/.test(prev)) add([...a.slice(0, i), 'っ', ...a.slice(i)].join(''));
+    else if (i > lo && i > 0 && i < a.length - 1 && SOKU_OK(c) && !/[っんーういくきつち]/.test(prev)) add([...a.slice(0, i), 'っ', ...a.slice(i)].join(''));
     // く·き·つ·ち ↔ っ (がくこう/がっこう 같은 헷갈림)
     if (/[くきつち]/.test(c) && next && SOKU_OK(next)) add([...a.slice(0, i), 'っ', ...a.slice(i + 1)].join(''));
-    if (c === 'っ' && next) for (const r of ['つ', 'く']) add([...a.slice(0, i), r, ...a.slice(i + 1)].join(''));
+    if (c === 'っ' && next && orig.includes('っ')) for (const r of ['つ', 'く']) add([...a.slice(0, i), r, ...a.slice(i + 1)].join(''));
     // 탁음 바꾸기
     if (DAK[c] && !/[ちつぢづ]/.test(c)) add([...a.slice(0, i), DAK[c], ...a.slice(i + 1)].join(''));
     // 요음: ょ↔ゅ, 빼기
     if (c === 'ょ' || c === 'ゅ') add([...a.slice(0, i), c === 'ょ' ? 'ゅ' : 'ょ', ...a.slice(i + 1)].join(''));
   }
   const made = (x, t) => x.includes(t) && !r.includes(t);
-  return [...new Set(out)].filter(x => !/^[っんーゃゅょ]/.test(x) && !/っ$|っっ|ーー|っー|ーっ|んっ/.test(x) && !['うう', 'いい', 'えい', 'うっ', 'ーン', 'ーっ', 'くく', 'つつ', 'きき', 'ちち', 'つっ', 'くっ', 'きっ', 'ちっ'].some(t => made(x, t)));
+  return [...new Set(out)].filter(x => !/^[っんーゃゅょ]/.test(x) && !/っ$|っっ|ーー|っー|ーっ|んっ/.test(x) && !['うう', 'いい', 'えい', 'うっ', 'ーン', 'ーっ', 'くく', 'つつ', 'きき', 'ちち', 'つっ', 'くっ', 'きっ', 'ちっ', 'っつ', 'っく', 'っき', 'っち'].some(t => made(x, t)));
 }
 function fakeReadings(w, need){
   const kata = isKata(w.kana), parts = String(w.kana).split(/[\/／]/).map(t => t.trim());
   const real = new Set(readings(w));
   const conv = x => kata ? hiraToKata(x) : x;
-  const one = r => fakeEdits(r, kata);
+  // 한자 앞뒤에 붙은 히라가나(試みる의 みる 등)는 문제에 그대로 보이므로 바꾸지 않음
+  const kj = w.kanji ? kataToHira(w.kanji) : '';
+  const lock = r => {
+    const a = Array.from(r), k = Array.from(kj); let pre = 0, suf = 0;
+    if (k.length){
+      while (pre < a.length && pre < k.length && a[pre] === k[pre] && /[\u3041-\u3096]/.test(k[pre])) pre++;
+      while (suf < a.length - pre && suf < k.length - pre && a[a.length - 1 - suf] === k[k.length - 1 - suf] && /[\u3041-\u3096]/.test(k[k.length - 1 - suf])) suf++;
+    }
+    return [pre, a.length - suf];
+  };
+  const one = (r, orig = r) => { const [lo, hi] = lock(r); return fakeEdits(r, kata, lo, hi, orig); };
   // 첫 번째 읽기 기준으로 만들고, 읽기가 여러 개면 나머지도 하나씩 바꿔서 이어 붙임
   const base = kataToHira(parts[0]);
   const singles = shuffle(one(base)), doubles = [];
-  for (const x of singles.slice(0, 8)) for (const y of one(x)) if (y !== base && !singles.includes(y)) doubles.push(y);
+  for (const x of singles.slice(0, 8)) for (const y of one(x, base)) if (y !== base && !singles.includes(y)) doubles.push(y);
   const order = [...singles.slice(0, 2), ...shuffle([...new Set(doubles)]).slice(0, 2), ...singles.slice(2)];
   const res = [];
   for (const f of order){
