@@ -83,6 +83,9 @@ button:focus-visible{outline:3px solid var(--brown2);outline-offset:2px}
 .menu{display:flex;flex-direction:column;gap:10px;margin-top:16px}
 .mbtn{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;align-items:center;gap:14px;text-align:left}
 .mbtn:active{transform:translateY(1px)}
+.menu3{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.menu3 .mbtn{padding:14px}
+.menu3 .mbtn .k{width:40px;height:40px;font-size:19px}
 .mbtn .k{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:22px;font-weight:800;flex:none;background:var(--chip);color:var(--brown2)}
 .mbtn .t{flex:1;min-width:0}
 .mbtn .t b{display:block;font-size:17px}
@@ -180,7 +183,15 @@ button:focus-visible{outline:3px solid var(--brown2);outline-offset:2px}
 .item .l2{font-size:14px;color:var(--sub);margin-top:2px}
 .tag{font-size:11px;font-weight:700;border-radius:6px;padding:2px 6px;margin-left:6px;vertical-align:middle}
 .tag.n{color:var(--ng);background:var(--ngbg)} .tag.d{color:var(--brown2);background:var(--chip)}
-.rec{font-size:12px;color:var(--sub);white-space:nowrap}
+.rec{font-size:13px;color:var(--sub);white-space:nowrap;display:flex;gap:12px;font-weight:700}
+.rec .ok{color:var(--ok)}.rec .ng{color:var(--ng)}
+#items{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;border:1px solid var(--line);border-radius:14px;padding:8px;background:var(--bg)}
+#items .item:last-child{margin-bottom:0}
+.lhead{display:flex;flex-direction:column;gap:6px;margin:8px 4px 10px}
+.lhead .cnt{margin:0;font-weight:700}
+.legend{font-size:12.5px;color:var(--sub);line-height:1.9}
+.legend b.ok{color:var(--ok)}.legend b.ng{color:var(--ng)}
+.legend .tag{margin:0 2px}
 .del{width:34px;height:34px;border-radius:50%;color:var(--sub);font-size:16px;flex:none}
 .danger{display:flex;gap:8px;margin:18px 0 30px}
 .danger button{flex:1;border:2px solid var(--line);border-radius:12px;padding:12px;font-size:14px;color:var(--sub);background:var(--paper)}
@@ -415,18 +426,16 @@ html.wlock,html.wlock body{overflow:hidden}
     </div>
     <div id="days"></div>
 
-    <div class="menu" style="margin-top:24px">
+    <div class="menu menu3" style="margin-top:24px;margin-bottom:28px">
       <button class="mbtn" onclick="openList()">
         <span class="k">覧</span><span class="t"><b>단어 목록</b><small>검색, 삭제, 백업</small></span>
       </button>
-      <button class="mbtn" onclick="$('#file').click()">
-        <span class="k">⇪</span><span class="t"><b>엑셀 불러오기</b><small>시트 이름(1일차, 2일차…)으로 일차가 나뉘어요</small></span>
+      <button class="mbtn" onclick="exportExcel()">
+        <span class="k">⇩</span><span class="t"><b>엑셀 받기</b><small>전체 단어장 받기</small></span>
       </button>
-    </div>
-    <div class="help">
-      엑셀 형식: 시트 이름 <code>1일차</code> ~ <code>41일차</code>, 한 줄에 한 단어<br>
-      <code>A 한자</code> <code>B 히라가나</code> <code>C 뜻</code> <code>D~F 예문</code><br>
-      예문은 <code>日本語の文 / 한국어 뜻</code> 처럼 슬래시로 나눠 쓰세요.
+      <button class="mbtn" onclick="$('#file').click()">
+        <span class="k">⇪</span><span class="t"><b>엑셀 불러오기</b><small>고친 엑셀을 다시 넣기</small></span>
+      </button>
     </div>
   </div>
   <input type="file" id="file" accept=".xlsx,.xls,.csv">
@@ -499,8 +508,8 @@ html.wlock,html.wlock body{overflow:hidden}
   <div class="wrap">
     <div class="lfilter"><select id="lDay" onchange="renderList()"></select>
       <input class="search" id="q" placeholder="한자, 히라가나, 뜻으로 검색" oninput="renderList()"></div>
-    <div class="lsum" id="lsum"></div>
-    <div class="cnt" id="cnt"></div>
+    <div class="lhead"><span class="cnt" id="cnt"></span>
+      <span class="legend"><b class="ok">○</b> 맞힌 횟수 · <b class="ng">✕</b> 틀린 횟수 · <span class="tag d">학습함</span> 한 번 이상 푼 단어 · <span class="tag n">오답</span> 오답노트에 있는 단어</span></div>
     <div id="items"></div>
     <div class="sec">백업</div>
     <div class="danger" style="margin-top:0">
@@ -1345,31 +1354,52 @@ function finishFlash(){
 function openList(){
   $('#q').value = '';
   $('#lDay').innerHTML = '<option value="">전체 일차</option>' + dayList().filter(d => dayWords(d).length).map(d => `<option value="${d}">${dayLabel(d)}</option>`).join('');
-  renderList(); show('list');
+  renderList(); show('list'); fitList();
+}
+// 목록은 틀 안에서만 스크롤: 화면에 들어가는 만큼만 높이를 주고, 아래 백업·초기화 버튼은 항상 보이게
+function fitList(){
+  const box = $('#items'); if (!$('#list').classList.contains('on')) return;
+  const below = [...$('#list .wrap').children].slice([...$('#list .wrap').children].indexOf(box) + 1).filter(e => e.offsetParent).reduce((h, e) => h + e.offsetHeight + 12, 0);
+  const top = box.getBoundingClientRect().top + window.scrollY;
+  const h = window.innerHeight - top - below - 20;
+  box.style.height = Math.max(240, h) + 'px';
+  const over = document.documentElement.scrollHeight - window.innerHeight;   // 그래도 화면이 넘치면 그만큼 줄임
+  if (over > 0) box.style.height = Math.max(240, box.offsetHeight - over) + 'px';
+}
+window.addEventListener('resize', () => requestAnimationFrame(fitList));
+let listJob = 0;
+function listRow(w){
+  const s = stats[w.id] || {c:0, w:0};
+  return `<div class="item"><div class="w">
+      <div class="l1">${esc(w.kanji || w.kana)}${w.kanji ? `<small>${esc(readingText(w))}</small>` : ''}${s.note ? '<span class="tag n">오답</span>' : ''}${s.d ? '<span class="tag d">학습함</span>' : ''}</div>
+      <div class="l2">${esc(w.meaning)} · ${dayLabel(w.day)}</div></div>
+      <span class="rec"><span class="ok">○ ${s.c}</span><span class="ng">✕ ${s.w}</span></span>
+      <button class="del" data-id="${esc(w.id)}" aria-label="삭제">🗑</button></div>`;
 }
 function renderList(){
   const q = $('#q').value.trim().toLowerCase(), dv = $('#lDay').value;
   const arr = words.filter(w => (!dv || w.day === +dv) && (!q || (w.kanji + ' ' + w.kana + ' ' + w.meaning).toLowerCase().includes(q)));
-  const LIMIT = 200;
-  const TARGET = 4045, filled = dayList().filter(d => dayWords(d).length);
-  $('#lsum').innerHTML = `등록 단어 <b>${num(words.length)}개</b> / 목표 ${num(TARGET)}개 · ${words.length >= TARGET ? '<b style="color:var(--ok)">완료 ✓</b>' : `남은 ${num(TARGET - words.length)}개`}<br>`
-    + filled.map(d => `${dayLabel(d)} ${dayWords(d).length}`).join(' · ');
-  $('#cnt').textContent = `${num(arr.length)}개` + (arr.length > LIMIT ? ` · 처음 ${LIMIT}개만 표시 (일차를 고르거나 검색하세요)` : '');
-  $('#items').innerHTML = arr.slice(0, LIMIT).map(w => {
-    const s = stats[w.id] || {c:0, w:0};
-    return `<div class="item"><div class="w">
-      <div class="l1">${esc(w.kanji || w.kana)}${w.kanji ? `<small>${esc(readingText(w))}</small>` : ''}${s.note ? '<span class="tag n">오답</span>' : ''}${s.d ? '<span class="tag d">학습함</span>' : ''}</div>
-      <div class="l2">${esc(w.meaning)} · ${dayLabel(w.day)}</div></div>
-      <span class="rec">○${s.c} ✕${s.w}</span>
-      <button class="del" data-id="${esc(w.id)}" aria-label="삭제">✕</button></div>`;
-  }).join('') || '<div class="noex">단어가 없습니다.</div>';
-  $('#items').querySelectorAll('.del').forEach(b => b.onclick = () => {
-    const w = byId.get(b.dataset.id);
-    modal('단어 삭제', `「${esc(w.kanji || w.kana)}」를 삭제할까요?`, [['삭제', 1, 'red'], ['취소', null]]).then(v => {
-      if (!v) return; words = words.filter(x => x.id !== w.id); delete stats[w.id]; saveWords(); saveStats(); renderList();
-    });
-  });
+  $('#cnt').textContent = `${num(arr.length)}개`;
+  const box = $('#items'); box.scrollTop = 0;
+  // 처음 보이는 만큼만 바로 그리고, 나머지는 조금씩 이어 붙임 (4,000개를 한 번에 그리면 느려서)
+  const job = ++listJob, FIRST = 40, STEP = 400;
+  box.innerHTML = arr.length ? arr.slice(0, FIRST).map(listRow).join('') : '<div class="noex">단어가 없습니다.</div>';
+  let i = FIRST;
+  const more = () => {
+    if (job !== listJob || i >= arr.length) return;
+    box.insertAdjacentHTML('beforeend', arr.slice(i, i + STEP).map(listRow).join('')); i += STEP;
+    setTimeout(more, 16);
+  };
+  setTimeout(more, 30);
+  requestAnimationFrame(fitList);
 }
+$('#items').addEventListener('click', e => {
+  const b = e.target.closest('.del'); if (!b) return;
+  const w = byId.get(b.dataset.id); if (!w) return;
+  modal('단어 삭제', `「${esc(w.kanji || w.kana)}」를 삭제할까요?`, [['삭제', 1, 'red'], ['취소', null]]).then(v => {
+    if (!v) return; words = words.filter(x => x.id !== w.id); delete stats[w.id]; saveWords(); saveStats(); renderList();
+  });
+});
 function resetStats(){
   modal('학습 기록 초기화', '진도, 정답/오답 기록, 오답노트, 진행 중인 학습이 모두 지워집니다. 단어는 그대로 남습니다.', [['초기화', 1, 'red'], ['취소', null]])
     .then(v => { if (v){ stats = {}; sessions = {}; saveStats(); saveSessions(); renderList(); toast('학습 기록을 초기화했습니다'); } });
@@ -1432,6 +1462,56 @@ $('#file').addEventListener('change', e => {
   };
   rd.readAsArrayBuffer(f);
 });
+
+/* ---------- 엑셀 받기: 지금 단어장 전체 → 고쳐서 다시 불러오기 ---------- */
+const POS_TEXT = {n:'명사', s:'명사·する동사', na:'な형용사', i:'い형용사', v:'동사', adv:'부사', c:'접속사', e:'표현', k:'경어'};  // 다시 불러와도 같은 품사로 읽히는 글자
+function exportExcel(){
+  if (!window.XLSX){ toast('엑셀 도구를 불러오지 못했어요. 인터넷 연결 후 다시 시도해 주세요'); return; }
+  toast('엑셀 파일을 만드는 중입니다…');
+  setTimeout(() => {
+    try {
+      const wb = XLSX.utils.book_new();
+      const guide = [
+        ['JLPT N1 단어장 · 엑셀 사용 안내'],
+        [''],
+        ['■ 이 파일 고치는 법'],
+        ['1. 시트 하나가 일차 하나예요. 시트 이름의 숫자(1일차, 2일차 …)로 일차가 정해져요.'],
+        ['2. 새 일차를 만들려면 마지막 시트를 복사해서 이름을 "42일차"처럼 바꾸고 내용을 바꿔 쓰세요.'],
+        ['3. 한 줄에 한 단어예요. 히라가나와 뜻은 꼭 채워 주세요. 한자가 없는 단어는 한자 칸을 비워 두세요.'],
+        ['4. 품사 칸: 명사 / 명사·する동사 / な형용사 / い형용사 / 동사 / 부사 / 접속사 / 표현 / 경어 중 하나를 쓰세요.'],
+        ['5. 예문 칸: 「日本語の文 / 한국어 뜻」처럼 슬래시(/)로 나눠서 예문1~예문3에 하나씩 쓰세요.'],
+        [''],
+        ['■ 앱에 다시 넣는 법'],
+        ['1. 앱 홈 화면 맨 아래 [엑셀 불러오기]를 누르고 이 파일을 고르세요.'],
+        ['2. [기존 단어에 추가]를 고르세요. 같은 단어는 고친 내용으로 바뀌고, 학습 기록은 그대로 남아요.'],
+        ['3. [기존 단어를 지우고 교체]는 이 파일에 없는 단어가 모두 지워지니 주의하세요.'],
+        [''],
+        ['■ 주의'],
+        ['· 이 "사용 안내" 시트는 불러올 때 자동으로 건너뛰어요. 지우지 않아도 돼요.'],
+        ['· 각 시트의 맨 윗줄(번호, 한자, 히라가나 …)은 지우거나 바꾸지 마세요.'],
+        ['· 한자나 히라가나를 고치면 앱은 새 단어로 알아봐요. 원래 단어도 앱에 남으니, 필요 없으면 [단어 목록]에서 지워 주세요.'],
+        ['· 불러온 단어는 불러온 그 기기에만 저장돼요. 다른 사람과 나누려면 이 엑셀 파일을 보내 주세요.']
+      ];
+      const gs = XLSX.utils.aoa_to_sheet(guide); gs['!cols'] = [{wch: 110}];
+      XLSX.utils.book_append_sheet(wb, gs, '사용 안내');
+      const head = ['번호', '한자', '히라가나', '품사', '뜻', '예문1', '예문2', '예문3'];
+      dayList().filter(d => dayWords(d).length).forEach(d => {
+        const rows = [head, ...dayWords(d).map((w, i) => [w.no || i + 1, w.kanji || '', w.kana, POS_TEXT[w.pos] || '명사', w.meaning,
+          ...[0, 1, 2].map(k => { const e = w.examples && w.examples[k]; return e ? (e.ko ? `${e.jp} / ${e.ko}` : e.jp) : ''; })])];
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!cols'] = [{wch: 6}, {wch: 12}, {wch: 16}, {wch: 14}, {wch: 24}, {wch: 50}, {wch: 50}, {wch: 50}];
+        XLSX.utils.book_append_sheet(wb, ws, d ? `${d}일차` : '기타');
+      });
+      const out = XLSX.write(wb, {bookType: 'xlsx', type: 'array'});
+      const blob = new Blob([out], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = `JLPT_N1_단어장_${today()}.xlsx`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      toast('엑셀 파일을 저장했어요. 파일 앱에서 확인하세요');
+    } catch(err){ console.error(err); modal('엑셀을 만들지 못했어요', '잠시 후 다시 시도해 주세요.', [['확인', 1, 'pri']]); }
+  }, 50);
+}
 
 /* ---------- backup ---------- */
 function exportBackup(){
