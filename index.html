@@ -110,6 +110,9 @@ button:focus-visible{outline:3px solid var(--brown2);outline-offset:2px}
 .score .o{color:var(--onbar)} .score .x{color:var(--onbar)}
 .qtop .track{background:rgba(15,53,80,.15);height:6px;margin:0}
 .qtop .track i{background:var(--cta)}
+.qtop .track{height:8px;position:relative;overflow:hidden}
+.ftrack{position:relative}
+.track u,.ftrack u{position:absolute;top:0;bottom:0;width:3px;margin-left:-1.5px;background:var(--bar);z-index:2;pointer-events:none;text-decoration:none}
 .card{background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:22px 18px 26px;text-align:center;position:relative}
 .qlabel{display:inline-block;font-size:13px;font-weight:700;color:var(--brown2);background:var(--chip);border-radius:99px;padding:5px 12px}
 .prompt{margin:22px 0 6px;font-weight:700;line-height:1.2;word-break:keep-all;overflow-wrap:anywhere}
@@ -128,7 +131,10 @@ button:focus-visible{outline:3px solid var(--brown2);outline-offset:2px}
 .opt.right::before{content:"○";background:var(--ok);color:#fff}
 .opt.wrong{border-color:var(--ng);background:var(--ngbg);color:var(--ng)}
 .opt.wrong::before{content:"✕";background:var(--ng);color:#fff}
-.opt.dim{opacity:.45}
+.opt.dim{opacity:.78}
+.opt .osub{display:inline;margin-left:8px;font-size:15px;font-weight:500;color:var(--sub);word-break:keep-all}
+.opt .osub.none{text-decoration:line-through;text-decoration-thickness:1.5px}
+.opt.right .osub,.opt.wrong .osub{color:inherit}
 .opt[disabled]{pointer-events:none}
 
 .mark{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;z-index:20;opacity:0}
@@ -1244,10 +1250,21 @@ function buildQuestion(w){
     // 히라가나 보기: 실제 단어가 모자라면 가짜 읽기로 채움
     if (a === 'kana' && texts.length < 3) for (const f of fakeReadings(w, 6)){ if (texts.length >= 3) break; if (!seen.has(f)){ seen.add(f); texts.push(f); } }
     if (texts.length < 3) continue;
-    const opts = shuffle([w[a], ...texts]);
-    return {w, p, a, opts, correct: opts.indexOf(w[a])};
+    // 보기마다 어느 단어의 것인지 기억해 둠 (정답 확인 후 읽기·한자·뜻을 같이 보여주려고). 가짜 읽기는 src가 없음
+    const items = shuffle([{t: w[a], src: w}, ...picks.map(o => ({t: o[a], src: o})), ...texts.slice(picks.length).map(t => ({t, src: null}))]);
+    return {w, p, a, opts: items.map(i => i.t), srcs: items.map(i => i.src), correct: items.findIndex(i => i.src === w)};
   }
   return null;
+}
+/* 진행 막대에 25개마다 눈금(칸 나눔)을 그림: 100문제면 4칸, 칠해진 칸 수로 얼마나 왔는지 한눈에 보임 */
+const TICK_EVERY = 25;
+function drawTicks(track, total){
+  if (!track || track.dataset.total === String(total)) return;
+  track.dataset.total = total;
+  track.querySelectorAll('u').forEach(u => u.remove());
+  for (let k = TICK_EVERY; k < total; k += TICK_EVERY){
+    const u = document.createElement('u'); u.style.left = (k / total * 100) + '%'; track.appendChild(u);
+  }
 }
 function updateTop(){
   const S = sessions[Q.key];
@@ -1255,6 +1272,7 @@ function updateTop(){
   const shown = Math.min(S.idx + (Q.answered ? 0 : 1), S.ids.length);
   $('#qNum').textContent = num(shown); $('#qTot').textContent = num(S.ids.length);
   $('#qBar').style.width = (S.idx / S.ids.length * 100) + '%';
+  drawTicks($('#qBar').parentElement, S.ids.length);
   $('#scO').textContent = S.o; $('#scX').textContent = S.x;
 }
 function nextQuestion(){
@@ -1296,6 +1314,17 @@ function highlight(jp, w){
   }
   return s;
 }
+/* 정답 확인 뒤 보기마다 붙는 설명: 한자 보기는 읽는 법, 히라가나 보기는 어떤 단어인지(없으면 '없는 읽기'), 뜻 보기는 어떤 단어의 뜻인지 */
+function optSub(q, j){
+  const src = q.srcs && q.srcs[j], t = q.opts[j];
+  if (!q.srcs) return '';
+  if (q.a === 'kanji') return src ? src.kana : '';
+  if (q.a === 'kana'){
+    const s = src || words.find(x => x.kana === t);
+    return s ? `${s.kanji ? s.kanji + ' · ' : ''}${s.meaning}` : '단어장에 없는 읽기';
+  }
+  return src ? `${src.kanji ? src.kanji + ' · ' : ''}${src.kana}` : '';
+}
 function answer(i){
   if (Q.answered) return;
   Q.answered = true;
@@ -1324,6 +1353,8 @@ function answer(i){
   [...$('#opts').children].forEach((b, j) => {
     b.disabled = true;
     if (j === q.correct) b.classList.add('right'); else if (j === i) b.classList.add('wrong'); else b.classList.add('dim');
+    const sub = optSub(q, j);
+    if (sub) b.insertAdjacentHTML('beforeend', `<span class="osub${sub === '단어장에 없는 읽기' ? ' none' : ''}">(${esc(sub)})</span>`);   // 없는 읽기는 괄호 설명에 취소선
   });
   const m = $('#mark');
   m.innerHTML = ok ? '<div class="o"></div>' : '<div class="x"></div>';
@@ -1482,6 +1513,7 @@ function renderFlash(first){
   $('#fBack').querySelectorAll('.ex .s').forEach(b => b.onclick = e => { stop(e); speak(w.examples[+b.dataset.i].jp); });
   $('#fNum').textContent = `${F.idx + 1} / ${F.ids.length}`;
   $('#fBar').style.width = (F.idx / F.ids.length * 100) + '%';
+  drawTicks($('#fBar').parentElement, F.ids.length);
   $('#fPrev').disabled = F.idx === 0;
   saveFlash();
   if (!first) window.scrollTo(0, 0);
