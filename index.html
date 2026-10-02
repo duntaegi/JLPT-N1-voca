@@ -62,6 +62,10 @@ button:focus-visible{outline:3px solid var(--brown2);outline-offset:2px}
 #rateRange{-webkit-appearance:none;appearance:none;width:100%;height:36px;background:transparent;margin:0;touch-action:pan-x}
 #rateRange::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:var(--line)}
 #rateRange::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:var(--cta);border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);margin-top:-10px}
+#ratePop .rpMode{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font-size:14px;font-weight:700}
+#ratePop .smode{display:flex;background:var(--chip);border-radius:10px;padding:3px}
+#ratePop .smode button{padding:7px 14px;border-radius:8px;font-size:14px;font-weight:700;color:var(--sub);touch-action:manipulation}
+#ratePop .smode button.on{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.15)}
 #ratePop .rpTicks{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);padding:0 4px}
 .icon{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-size:19px;color:var(--onbar);flex:none}
 .icon:active{background:rgba(15,53,80,.1)}
@@ -292,6 +296,37 @@ input[type=file]{display:none}
 .dstat4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .dstat4 .stat b{font-size:20px}
 .dbtns{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.rdots{display:flex;gap:4px;justify-content:center;align-items:center}
+.rdots i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--sub);opacity:.55;box-sizing:border-box}
+.rdots i.on{background:var(--cta);border-color:var(--cta);opacity:1}
+.dc .rdots{margin-top:7px}
+.drow .top .rdots{flex:none;gap:5px}
+.drow .top .rdots i{width:11px;height:11px}
+.rbtn{cursor:default}
+.secrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.secrow .pen{flex:none;display:grid;place-items:center;width:40px;height:40px;background:var(--chip);border-radius:50%;padding:0;font-size:18px;touch-action:manipulation}
+.secrow .pen:active{transform:translateY(1px)}
+.ehelp{font-size:14px;color:var(--sub);line-height:1.6;margin:0 2px 10px}
+.erow{width:100%;display:flex;align-items:center;gap:10px;text-align:left;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:8px;touch-action:manipulation}
+.erow:active{transform:translateY(1px)}
+.erow .w{flex:1;min-width:0}
+.erow .l1{font-size:19px;font-weight:700}
+.erow .l1 small{font-size:14px;color:var(--brown2);font-weight:500;margin-left:6px}
+.erow .l2{font-size:14px;color:var(--sub);margin-top:2px;word-break:keep-all}
+.erow .pc{flex:none;color:var(--sub);font-size:17px}
+.erow .tag.e{color:var(--brown2);background:var(--chip)}
+#eItems{margin-top:10px}
+#editPop .sheet h3{font-size:26px;margin:0}
+#editPop .mm{margin-top:2px}
+.eplabel{display:block;font-size:13px;font-weight:700;color:var(--sub);margin:16px 2px 6px}
+#epInput{width:100%;border:2px solid var(--line);border-radius:12px;padding:12px 14px;font:inherit;font-size:17px;line-height:1.5;background:var(--paper);color:var(--ink);outline:none;resize:none;-webkit-user-select:text;user-select:text}
+#epInput:focus{border-color:var(--brown2)}
+.epnote{font-size:13px;color:var(--sub);margin:8px 2px 0;line-height:1.5}
+.epnote b{color:var(--ink)}
+.rbtn .rpick{display:flex;gap:8px;margin-top:10px}
+.rbtn .rc{width:38px;height:38px;border-radius:50%;border:2px solid var(--line);background:var(--paper);color:var(--sub);font-size:15px;font-weight:800;display:grid;place-items:center;padding:0;touch-action:manipulation}
+.rbtn .rc.on{background:var(--cta);border-color:var(--cta);color:var(--oncta)}
+.rbtn .rc:active{transform:scale(.94)}
 .sel{display:flex;align-items:center;gap:10px;justify-content:center;margin:10px 0}
 .sel select{font:inherit;font-size:20px;font-weight:700;padding:10px 12px;border-radius:12px;border:2px solid var(--line);background:var(--paper);color:var(--ink);min-width:120px}
 .sel span{font-size:18px;color:var(--sub)}
@@ -451,6 +486,28 @@ html.wlock,html.wlock body{overflow:hidden}
   <div class="wrap" id="dBody"></div>
 </section>
 
+<!-- 뜻 수정 -->
+<section class="screen" id="wedit">
+  <div class="bar">
+    <button class="icon" onclick="closeEdit()" aria-label="뒤로">←</button>
+    <h2 id="eTitle">뜻 수정</h2>
+  </div>
+  <div class="wrap">
+    <div class="ehelp">고치고 싶은 단어를 누르세요. 고친 뜻은 문제, 카드, 엑셀 받기에 모두 그대로 쓰여요.</div>
+    <input class="search" id="eq" placeholder="한자, 히라가나, 뜻으로 검색" oninput="renderEdit()">
+    <div id="eItems"></div>
+  </div>
+</section>
+
+<div class="modal" id="editPop"><div class="sheet">
+  <h3 id="epWord"></h3>
+  <div class="mm" id="epRead"></div>
+  <label class="eplabel" for="epInput">뜻</label>
+  <textarea id="epInput" rows="2" maxlength="120" placeholder="뜻을 입력하세요"></textarea>
+  <div class="epnote" id="epNote"></div>
+  <div class="mb"><button class="btn pri" id="epSave">저장</button><button class="btn" id="epReset">원래 뜻으로 되돌리기</button><button class="btn" id="epCancel">취소</button></div>
+</div></div>
+
 <!-- QUIZ -->
 <section class="screen" id="quiz">
   <div class="bar">
@@ -606,14 +663,20 @@ function reindex(){
 }
 function get(k, d){ try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch(e){ return d; } }
 function put(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){ toast('저장 공간이 부족해 저장하지 못했습니다'); } }
+let edits = {};   // 내가 고친 뜻: {단어id: {o: 원래 뜻, m: 고친 뜻}}
+const saveEdits = () => put('jv2_edits', edits);
 function load(){
+  edits = get('jv2_edits', {}) || {};
   words = get('jv_words_ed1a5179', null);
   const sampleWords = () => { const cnt = {}; return SAMPLE.map(r => { cnt[r[0]] = (cnt[r[0]] || 0) + 1; return normalize(r[0], cnt[r[0]], r[1], r[2], r[3], r[4], r[5]); }); };
   if (!Array.isArray(words)){ words = sampleWords(); put('jv_words_ed1a5179', words); put('jv2_dataver', DATA_VER); }
   else if (get('jv2_dataver', 0) !== DATA_VER){
     // 앱을 업데이트하면 내장 단어·예문을 새 내용으로 바꿈 (학습 기록은 그대로)
-    const map = new Map(words.map(w => [w.id, w])); sampleWords().forEach(w => map.set(w.id, w));
+    const map = new Map(words.map(w => [w.id, w])), sm = sampleWords(); sm.forEach(w => map.set(w.id, w));
+    // 내가 고친 뜻은 업데이트해도 그대로 유지 (원래 뜻만 새 버전으로 갱신)
+    sm.forEach(w => { const e = edits[w.id]; if (e){ e.o = w.meaning; w.meaning = e.m; } });
     words = [...map.values()].sort((a, b) => a.day - b.day || a.no - b.no);
+    saveEdits();
     put('jv_words_ed1a5179', words); put('jv2_dataver', DATA_VER);
   }
   stats = get('jv2_stats', {}) || {};
@@ -622,10 +685,22 @@ function load(){
   range = get('jv2_range', null);
   layout = get('jv2_layout', 'A');
   flashSaves = get('jv2_flash', {}) || {};
+  rounds = get('jv2_rounds', {}) || {};
   reindex();
 }
 const saveWords = () => { reindex(); put('jv_words_ed1a5179', words); };
 const saveStats = () => put('jv2_stats', stats);
+/* 회독: 일차마다 0~5회. 동그라미 5개 중 칠해진 개수가 회독 수 */
+let rounds = {};
+const MAXR = 5;
+const saveRounds = () => put('jv2_rounds', rounds);
+const roundOf = d => Math.min(MAXR, Math.max(0, +rounds[d] || 0));
+const dotsHTML = d => { const n = roundOf(d); return `<span class="rdots" aria-label="${n}회독">${Array.from({length: MAXR}, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</span>`; };
+function setRound(d, n){
+  rounds[d] = (n === roundOf(d)) ? n - 1 : n;   // 이미 칠해진 마지막 동그라미를 다시 누르면 한 칸 줄어듦
+  if (rounds[d] <= 0) delete rounds[d];
+  saveRounds();
+}
 const saveSessions = () => put('jv2_sessions', sessions);
 const st = id => stats[id] || (stats[id] = {c:0, w:0, note:false, streak:0});
 const isStudied = w => !!(stats[w.id] && stats[w.id].d);
@@ -670,22 +745,33 @@ function openRate(btn){
     pop = document.createElement('div'); pop.id = 'ratePop';
     pop.innerHTML = `<div class="rpTop"><b>발음 속도</b><span id="rateVal"></span></div>
       <input type="range" id="rateRange" min="1" max="3" step="0.25" aria-label="발음 속도">
-      <div class="rpTicks"><span>1×</span><span>1.5×</span><span>2×</span><span>2.5×</span><span>3×</span></div>`;
+      <div class="rpTicks"><span>1×</span><span>1.5×</span><span>2×</span><span>2.5×</span><span>3×</span></div>
+      <div class="rpMode"><span>단어 읽는 기준</span><div class="smode"><button type="button" data-m="kanji">한자</button><button type="button" data-m="kana">히라가나</button></div></div>`;
     document.body.appendChild(pop);
     const rg = $('#rateRange');
     rg.addEventListener('input', () => { speechRate = +rg.value; put('jv2_rate', speechRate); renderRate(); });
     rg.addEventListener('change', () => speak('はやさ'));   // 손을 떼면 그 속도로 한 번 들려줌
+    const paintMode = () => pop.querySelectorAll('.smode button').forEach(b => b.classList.toggle('on', b.dataset.m === speakMode));
+    pop.querySelectorAll('.smode button').forEach(b => b.onclick = () => { speakMode = b.dataset.m; put('jv2_speakmode', speakMode); paintMode(); toast(speakMode === 'kanji' ? '한자 기준으로 읽어요' : '히라가나 기준으로 읽어요'); });
+    pop._paintMode = paintMode; paintMode();
     // 바깥을 누르면 닫힘
     document.addEventListener('pointerdown', e => { if (pop.classList.contains('on') && !pop.contains(e.target) && !e.target.closest('.rateBtn')){ pop.classList.remove('on'); if (e.target === wCv){ e.stopPropagation(); e.preventDefault(); } } }, true);  // 닫으려고 누른 터치가 선으로 그려지지 않게
   }
   if (pop.classList.contains('on')){ pop.classList.remove('on'); return; }
-  $('#rateRange').value = speechRate; renderRate();
+  $('#rateRange').value = speechRate; renderRate(); pop._paintMode && pop._paintMode();
   const r = btn.getBoundingClientRect();
   pop.style.top = (r.bottom + 8) + 'px';
   pop.style.right = Math.max(8, window.innerWidth - r.right - 40) + 'px';
   pop.classList.add('on');
 }
 function closeRate(){ const p = $('#ratePop'); if (p) p.classList.remove('on'); }
+/* 읽는 기준: 한자(기본) 또는 히라가나. 한자가 있는 단어는 한자 그대로 읽히고, 한자가 없으면 히라가나를 읽음 */
+let speakMode = get('jv2_speakmode', 'kanji') === 'kana' ? 'kana' : 'kanji';
+function wordSpeech(w){
+  const kana = String(w.kana || '').split(/[\/／]/)[0].trim();
+  if (speakMode === 'kanji' && w.kanji){ const k = String(w.kanji).split(/[\/／・]/)[0].trim(); if (k) return k; }
+  return kana;
+}
 function speak(text){
   stopVoice();
   try {
@@ -794,6 +880,8 @@ function show(id){ stopSpeak(); closeRate(); if ($('#write').classList.contains(
 function goHome(){ renderHome(); show('home'); }
 window.handleBack = function(){
   if ($('#modal').classList.contains('open')){ closeModal(); return true; }
+  if ($('#editPop').classList.contains('open')){ closeEditPop(); return true; }
+  if ($('#wedit').classList.contains('on')){ closeEdit(); return true; }
   if ($('#write').classList.contains('on')){ closeWrite(); return true; }
   if ($('#quiz').classList.contains('on')){ quitQuiz(); return true; }
   if ($('#flash').classList.contains('on')){ quitFlash(); return true; }
@@ -841,7 +929,7 @@ function renderDays(){
     box.innerHTML = days.map(d => {
       const s = dayStat(d), pct = s.total ? s.done / s.total * 100 : 0;
       const cls = !s.total ? 'nowords' : (s.done === s.total ? 'complete' : '');
-      return `<button class="dc ${cls}" data-d="${d}"><b>${dayLabel(d)}</b><small>${s.total ? `${s.done}/${s.total}` : '단어 없음'}</small>
+      return `<button class="dc ${cls}" data-d="${d}"><b>${dayLabel(d)}</b><small>${s.total ? `${s.done}/${s.total}` : '단어 없음'}</small>${s.total ? dotsHTML(d) : ''}
         <div class="mini"><i style="width:${pct}%"></i></div>${s.note ? `<span class="nb">${s.note}</span>` : ''}</button>`;
     }).join('');
     box.querySelectorAll('.dc').forEach(b => b.onclick = () => {
@@ -853,7 +941,7 @@ function renderDays(){
     box.innerHTML = days.map(d => {
       const s = dayStat(d), pct = s.total ? s.done / s.total * 100 : 0;
       return `<div class="drow ${s.total ? '' : 'nowords'}" data-d="${d}">
-        <div class="top"><b>${dayLabel(d)}</b><small>${s.total ? `${s.total}단어 · 학습 ${s.done} · 오답 ${s.note}` : '단어 없음'}</small></div>
+        <div class="top"><b>${dayLabel(d)}</b><small>${s.total ? `${s.total}단어 · 학습 ${s.done} · 오답 ${s.note}` : '단어 없음'}</small>${s.total ? dotsHTML(d) : ''}</div>
         <div class="mini"><i style="width:${pct}%"></i></div>
         <div class="bs"><button class="m" data-k="learn">${resumeText('d' + d + 'learn') ? '이어서' : '문제'}</button><button class="c" data-k="card">${flashResume('d' + d) ? '카드 ▶' : '카드'}</button><button data-k="rev">복습</button><button class="n" data-k="note">오답 ${s.note || ''}</button></div></div>`;
     }).join('');
@@ -883,10 +971,62 @@ function renderDay(){
       <button class="mbtn" data-k="card"><span class="k">🃏</span><span class="t"><b>카드 뒤집기</b><small>${flashResume('d' + d) || `${s.total}장 · 보고 떠올린 뒤 뒤집어 확인`}</small></span></button>
       <button class="mbtn" data-k="rev"><span class="k">復</span><span class="t"><b>복습하기</b><small>${resumeText('d' + d + 'rev') || `푼 단어 ${s.done}개 · 틀린 단어가 더 자주 나와요`}</small></span></button>
       <button class="mbtn" data-k="note"><span class="k a">✕</span><span class="t"><b>오답노트</b><small>${resumeText('d' + d + 'note') || `${s.note}개 · 2번 연속 맞히면 빠져요`}</small></span></button>
+      <div class="mbtn rbtn"><span class="k">回</span><span class="t"><b>몇 번 회독 했나요?</b><small id="rSub"></small><span class="rpick" id="rPick"></span></span></div>
     </div>
-    <div class="sec">단어 ${ws.length}개 <span style="font-weight:400">${['n','s','v','i','na','adv','c','e','k'].filter(k => cnt[k]).map(k => ` · ${POS_INFO[k].ko} ${cnt[k]}`).join('')}</span></div>
+    <div class="sec secrow"><span>단어 ${ws.length}개 <span style="font-weight:400">${['n','s','v','i','na','adv','c','e','k'].filter(k => cnt[k]).map(k => ` · ${POS_INFO[k].ko} ${cnt[k]}`).join('')}</span></span>
+      <button type="button" class="pen" onclick="openEdit(${d})" aria-label="뜻 수정">✏️</button></div>
     <div class="item" style="display:block">${ws.map(w => `<div class="dayword"><span>${esc(w.kanji || w.kana)}</span><span>${esc(readingText(w))}</span><span>${esc(w.meaning)}${isNote(w) ? '<span class="tag n">오답</span>' : ''}</span></div>`).join('')}</div>`;
   $('#dBody').querySelectorAll('.dbtns button').forEach(b => b.onclick = () => dayAction(d, b.dataset.k));
+  drawRoundPick(d);
+}
+/* ---------- 뜻 수정 ---------- */
+let editDay = 0, editWord = null;
+function openEdit(d){ editDay = d; $('#eq').value = ''; $('#eTitle').textContent = `${dayLabel(d)} 뜻 수정`; renderEdit(); show('wedit'); }
+function closeEdit(){ if ($('#editPop').classList.contains('open')) closeEditPop(); renderDay(); show('day'); }
+function renderEdit(){
+  const q = $('#eq').value.trim().toLowerCase();
+  const arr = dayWords(editDay).filter(w => !q || (w.kanji + ' ' + w.kana + ' ' + w.meaning).toLowerCase().includes(q));
+  $('#eItems').innerHTML = arr.length ? arr.map(w => `<button type="button" class="erow" data-id="${esc(w.id)}"><span class="w">
+      <div class="l1">${esc(w.kanji || w.kana)}${w.kanji ? `<small>${esc(readingText(w))}</small>` : ''}${edits[w.id] ? '<span class="tag e">수정됨</span>' : ''}</div>
+      <div class="l2">${esc(w.meaning)}</div></span><span class="pc">✏️</span></button>`).join('') : '<div class="noex">단어가 없습니다.</div>';
+}
+$('#eItems').addEventListener('click', e => { const b = e.target.closest('.erow'); if (b) openEditPop(b.dataset.id); });
+function openEditPop(id){
+  const w = byId.get(id); if (!w) return;
+  editWord = w;
+  $('#epWord').textContent = w.kanji || w.kana;
+  $('#epRead').textContent = w.kanji ? readingText(w) : '';
+  const inp = $('#epInput'); inp.value = w.meaning;
+  const ed = edits[id];
+  $('#epNote').innerHTML = ed ? `원래 뜻: <b>${esc(ed.o)}</b>` : '뜻이 여러 개면 쉼표(,)로 나눠 쓰세요.';
+  $('#epReset').style.display = ed ? '' : 'none';
+  $('#editPop').classList.add('open');
+  setTimeout(() => { inp.focus(); inp.select(); }, 60);
+}
+function closeEditPop(){ $('#editPop').classList.remove('open'); editWord = null; document.activeElement && document.activeElement.blur(); }
+function saveMeaning(){
+  const w = editWord; if (!w) return;
+  const text = $('#epInput').value.replace(/\s+/g, ' ').trim();
+  if (!text){ toast('뜻을 입력해 주세요'); return; }
+  const orig = edits[w.id] ? edits[w.id].o : w.meaning;
+  if (text === orig) delete edits[w.id]; else edits[w.id] = {o: orig, m: text};
+  w.meaning = text; saveWords(); saveEdits();
+  closeEditPop(); renderEdit(); toast('뜻을 고쳤어요');
+}
+function resetMeaning(){
+  const w = editWord, ed = w && edits[w.id]; if (!ed) return;
+  w.meaning = ed.o; delete edits[w.id]; saveWords(); saveEdits();
+  closeEditPop(); renderEdit(); toast('원래 뜻으로 되돌렸어요');
+}
+$('#epSave').onclick = saveMeaning; $('#epReset').onclick = resetMeaning; $('#epCancel').onclick = closeEditPop;
+$('#editPop').addEventListener('click', e => { if (e.target.id === 'editPop') closeEditPop(); });
+$('#epInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); saveMeaning(); } });
+
+function drawRoundPick(d){
+  const n = roundOf(d), box = $('#rPick'); if (!box) return;
+  $('#rSub').textContent = n ? `지금 ${n}회독 · 동그라미를 눌러 바꿔요` : '동그라미를 눌러 체크해요';
+  box.innerHTML = Array.from({length: MAXR}, (_, i) => `<button type="button" class="rc ${i < n ? 'on' : ''}" data-n="${i + 1}" aria-label="${i + 1}회독">${i + 1}</button>`).join('');
+  box.querySelectorAll('.rc').forEach(b => b.onclick = () => { setRound(d, +b.dataset.n); drawRoundPick(d); renderDays(); });
 }
 function dayAction(d, k){
   const ws = dayWords(d), L = dayLabel(d);
@@ -1131,7 +1271,7 @@ function nextQuestion(){
   $('#qPos').innerHTML = posBadge(q.w);
   const sp = $('#qSpeak');
   sp.style.display = (q.p !== 'meaning' && q.a !== 'kana') ? '' : 'none';
-  sp.onclick = () => speak(q.w.kana);
+  sp.onclick = () => speak(wordSpeech(q.w));
   const box = $('#opts'); box.innerHTML = '';
   q.opts.forEach((t, i) => {
     const b = document.createElement('button');
@@ -1186,7 +1326,7 @@ function answer(i){
   m.classList.remove('show'); void m.offsetWidth; m.classList.add('show');
   stopSpeak(); sfx(ok ? 'ok' : 'ng');
   if (notice.includes('grad')) sfx('grad');
-  const readWord = q.w.kana.split('/')[0];
+  const readWord = wordSpeech(q.w);
   autoT = setTimeout(() => speak(readWord), notice.includes('grad') ? 900 : 550);
   try { navigator.vibrate && navigator.vibrate(ok ? 30 : [40, 60, 40]); } catch(e){}
 
@@ -1209,7 +1349,7 @@ function answer(i){
     ${exHtml}
     <button class="next" id="nextBtn">${last ? '결과 보기' : '다음 문제'}</button>`;
   r.classList.add('on');
-  $('#rSpeak').onclick = () => speak(w.kana);
+  $('#rSpeak').onclick = () => speak(wordSpeech(w));
   $('#rWrite').onclick = () => openWrite(w);
   r.querySelectorAll('.ex .s').forEach(b => b.onclick = () => speak(w.examples[+b.dataset.i].jp));
   $('#nextBtn').onclick = nextQuestion;
@@ -1287,7 +1427,7 @@ function quitFlash(){
 }
 function flipCard(){
   const i = $('#fInner'); i.classList.toggle('on'); stopSpeak();
-  if (i.classList.contains('on')){ const w = byId.get(F.ids[F.idx]); if (w) autoT = setTimeout(() => speak(w.kana.split('/')[0]), 250); }
+  if (i.classList.contains('on')){ const w = byId.get(F.ids[F.idx]); if (w) autoT = setTimeout(() => speak(wordSpeech(w)), 250); }
 }
 function renderFlash(first){
   stopSpeak();
@@ -1311,8 +1451,8 @@ function renderFlash(first){
     <button class="wbtn" id="fWrite">✍️ 이 단어 써 보기</button>
     <div class="fh" style="text-align:center">탭하면 앞면으로</div>`;
   const stop = e => e.stopPropagation();
-  const s1 = $('#fSpeak'); if (s1) s1.onclick = e => { stop(e); speak(w.kana); };
-  $('#fSpeak2').onclick = e => { stop(e); speak(w.kana); };
+  const s1 = $('#fSpeak'); if (s1) s1.onclick = e => { stop(e); speak(wordSpeech(w)); };
+  $('#fSpeak2').onclick = e => { stop(e); speak(wordSpeech(w)); };
   $('#fWrite').onclick = e => { stop(e); openWrite(w); };
   $('#fBack').querySelectorAll('.ex .s').forEach(b => b.onclick = e => { stop(e); speak(w.examples[+b.dataset.i].jp); });
   $('#fNum').textContent = `${F.idx + 1} / ${F.ids.length}`;
@@ -1408,16 +1548,16 @@ $('#items').addEventListener('click', e => {
   const b = e.target.closest('.del'); if (!b) return;
   const w = byId.get(b.dataset.id); if (!w) return;
   modal('단어 삭제', `「${esc(w.kanji || w.kana)}」를 삭제할까요?`, [['삭제', 1, 'red'], ['취소', null]]).then(v => {
-    if (!v) return; words = words.filter(x => x.id !== w.id); delete stats[w.id]; saveWords(); saveStats(); renderList();
+    if (!v) return; words = words.filter(x => x.id !== w.id); delete stats[w.id]; delete edits[w.id]; saveWords(); saveStats(); saveEdits(); renderList();
   });
 });
 function resetStats(){
-  modal('학습 기록 초기화', '진도, 정답/오답 기록, 오답노트, 진행 중인 학습이 모두 지워집니다. 단어는 그대로 남습니다.', [['초기화', 1, 'red'], ['취소', null]])
-    .then(v => { if (v){ stats = {}; sessions = {}; saveStats(); saveSessions(); renderList(); toast('학습 기록을 초기화했습니다'); } });
+  modal('학습 기록 초기화', '진도, 정답/오답 기록, 오답노트, 회독 체크, 진행 중인 학습이 모두 지워집니다. 단어는 그대로 남습니다.', [['초기화', 1, 'red'], ['취소', null]])
+    .then(v => { if (v){ stats = {}; sessions = {}; rounds = {}; saveStats(); saveSessions(); saveRounds(); renderList(); toast('학습 기록을 초기화했습니다'); } });
 }
 function deleteAll(){
   modal('단어 전체 삭제', '모든 단어와 학습 기록이 지워집니다. 되돌릴 수 없습니다.', [['전체 삭제', 1, 'red'], ['취소', null]])
-    .then(v => { if (v){ words = []; stats = {}; sessions = {}; range = null; put('jv2_range', null); saveWords(); saveStats(); saveSessions(); renderList(); toast('모든 단어를 삭제했습니다'); } });
+    .then(v => { if (v){ words = []; stats = {}; sessions = {}; rounds = {}; edits = {}; range = null; put('jv2_range', null); saveWords(); saveStats(); saveSessions(); saveRounds(); saveEdits(); renderList(); toast('모든 단어를 삭제했습니다'); } });
 }
 
 /* ---------- excel import ---------- */
@@ -1465,8 +1605,11 @@ $('#file').addEventListener('change', e => {
       `${days.length}개 일차 (${days.map(dayLabel).slice(0, 6).join(', ')}${days.length > 6 ? ' …' : ''})<br>예문이 있는 단어 ${num(exCnt)}개<br>같은 단어가 이미 있으면 새 내용으로 바뀌고, 학습 기록은 유지됩니다.`,
       [['기존 단어에 추가', 'add', 'pri'], ['기존 단어를 지우고 교체', 'replace'], ['취소', null]]);
     if (!v) return;
-    if (v === 'replace') words = list;
+    if (v === 'replace'){ words = list; edits = {}; }
     else { const map = new Map(words.map(w => [w.id, w])); list.forEach(w => map.set(w.id, w)); words = [...map.values()]; }
+    // 엑셀에서 가져온 뜻이 내가 고친 뜻과 다르면, 엑셀 내용을 새 기준으로 삼음
+    list.forEach(w => { const e = edits[w.id]; if (e && e.m !== w.meaning) delete edits[w.id]; });
+    saveEdits();
     words.sort((a, b) => a.day - b.day || a.no - b.no);
     saveWords(); renderHome();
     toast(`${num(list.length)}개 단어를 불러왔습니다 · 전체 ${num(words.length)}개`);
@@ -1526,7 +1669,7 @@ function exportExcel(){
 
 /* ---------- backup ---------- */
 function exportBackup(){
-  const data = {app:'jpvocab', v:2, date:new Date().toISOString(), words, stats, sessions, range};
+  const data = {app:'jpvocab', v:2, date:new Date().toISOString(), words, stats, sessions, range, rounds, edits};
   const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = `단어장_백업_${today()}.json`;
@@ -1543,8 +1686,8 @@ $('#bfile').addEventListener('change', e => {
     if (!d || d.app !== 'jpvocab' || !Array.isArray(d.words) || d.v !== 2){ modal('백업 파일이 아닙니다', '이 버전의 단어장에서 저장한 .json 백업 파일을 선택해 주세요.', [['확인', 1, 'pri']]); return; }
     const v = await modal('백업에서 복원할까요?', `단어 ${num(d.words.length)}개와 학습 기록을 불러옵니다.<br>지금 기기에 있는 내용은 백업 내용으로 바뀝니다.`, [['복원하기', 1, 'pri'], ['취소', null]]);
     if (!v) return;
-    words = d.words; stats = d.stats || {}; sessions = d.sessions || {}; range = d.range || null; put('jv2_range', range);
-    saveWords(); saveStats(); saveSessions(); renderList(); renderHome();
+    words = d.words; stats = d.stats || {}; sessions = d.sessions || {}; rounds = d.rounds || {}; edits = d.edits || {}; range = d.range || null; put('jv2_range', range);
+    saveWords(); saveStats(); saveSessions(); saveRounds(); saveEdits(); renderList(); renderHome();
     toast('백업에서 복원했습니다');
   };
   rd.readAsText(f);
@@ -1564,7 +1707,7 @@ function openWrite(w){
   WR.w = w; WR.mode = w.kanji ? (pref.mode || 'kanji') : 'kana'; WR.guide = true;  // 새 단어는 항상 견본이 보이는 상태로 시작
   WR.strokes = {}; WR.page = 0; WR.cur = null;
   $('#write').classList.add('on'); document.documentElement.classList.add('wlock');
-  $('#wSpeak').onclick = () => speak(w.kana.split('/')[0]);
+  $('#wSpeak').onclick = () => speak(wordSpeech(w));
   renderWrite();
 }
 function closeWrite(){ closeRate(); WR.cur = null; $('#write').classList.remove('on'); document.documentElement.classList.remove('wlock'); }
@@ -1742,7 +1885,7 @@ wCv.addEventListener('touchmove', e => {
 $('#write').addEventListener('touchmove', e => { if (e.touches.length < 2 && !e.target.closest('input')) e.preventDefault(); }, {passive: false});  // 화면이 밀리지 않도록 (두 손가락은 허용 → 확대돼도 되돌릴 수 있게)
 // 펜으로 버튼을 누르면 살짝 미끄러져서 click이 안 생기는 경우가 있음 → 손을 뗄 때 바로 누른 것으로 처리
 (() => {
-  const root = $('#write'); let down = null, firedAt = 0;
+  const root = $('#write'); let down = null, firedAt = 0, firedBtn = null;
   root.addEventListener('pointerdown', e => {
     const b = e.target.closest('button');
     down = b && e.pointerType !== 'mouse' ? {b, id: e.pointerId, x: e.clientX, y: e.clientY} : null;
@@ -1753,11 +1896,11 @@ $('#write').addEventListener('touchmove', e => { if (e.touches.length < 2 && !e.
     const r = d.b.getBoundingClientRect(), pad = 12;
     const inside = e.clientX >= r.left - pad && e.clientX <= r.right + pad && e.clientY >= r.top - pad && e.clientY <= r.bottom + pad;
     if (!inside || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 40) return;
-    firedAt = Date.now(); d.b.click();
+    firedAt = Date.now(); firedBtn = d.b; d.b.click();
   }, true);
   root.addEventListener('pointercancel', () => { down = null; }, true);
   // 위에서 이미 눌렀으면 뒤따라오는 진짜 click은 무시 (두 번 눌리지 않게)
-  document.addEventListener('click', e => { if (e.isTrusted && Date.now() - firedAt < 700){ e.stopPropagation(); e.preventDefault(); } }, true);
+  document.addEventListener('click', e => { if (e.isTrusted && firedBtn && Date.now() - firedAt < 700 && e.target.closest('button') === firedBtn){ e.stopPropagation(); e.preventDefault(); } }, true);
 })();
 function writeUndo(){ const a = WR.strokes[WR.page]; if (a && a.length){ a.pop(); redrawWrite(); } }
 function writeClear(){ WR.strokes[WR.page] = []; redrawWrite(); }
