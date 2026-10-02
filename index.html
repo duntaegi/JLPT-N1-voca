@@ -1318,7 +1318,7 @@ function highlight(jp, w){
 function optSub(q, j){
   const src = q.srcs && q.srcs[j], t = q.opts[j];
   if (!q.srcs) return '';
-  if (q.a === 'kanji') return src ? src.kana : '';
+  if (q.a === 'kanji') return src ? `${src.kana} · ${src.meaning}` : '';
   if (q.a === 'kana'){
     const s = src || words.find(x => x.kana === t);
     return s ? `${s.kanji ? s.kanji + ' · ' : ''}${s.meaning}` : '단어장에 없는 읽기';
