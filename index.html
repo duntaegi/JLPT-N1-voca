@@ -327,6 +327,7 @@ input[type=file]{display:none}
 .erow .pc{flex:none;color:var(--sub);font-size:17px}
 .erow .tag.e{color:var(--brown2);background:var(--chip)}
 #eItems{margin-top:10px}
+#tStart:disabled{opacity:.5;box-shadow:none;transform:none}
 .tlist{display:flex;flex-direction:column;gap:8px;margin-top:14px}
 .trow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--paper);border:2px solid var(--line);border-radius:14px;padding:13px 14px;font-size:17px;font-weight:700;touch-action:manipulation}
 .trow .tbox{flex:none;width:26px;height:26px;border-radius:8px;border:2px solid var(--line);display:grid;place-items:center;font-size:16px;color:#fff;background:var(--paper)}
@@ -1108,13 +1109,13 @@ const TYPE_LIST = [
 let qTypes = (() => { const v = get('jv2_qtypes', ['rand']); return Array.isArray(v) && v.length && v.every(x => x === 'rand' || TYPE_PAIRS[x]) ? v : ['rand']; })();
 function askTypes(init){
   return new Promise(res => {
-    const pop = $('#typePop'); let sel = new Set(init && init.length ? init : qTypes);
-    const draw = () => { $('#tList').innerHTML = TYPE_LIST.map(([id, name, sub]) => `<button type="button" class="trow ${sel.has(id) ? 'on' : ''}" data-id="${id}"><span class="tbox">${sel.has(id) ? '✓' : ''}</span><span>${name}${sub ? `<small>${sub}</small>` : ''}</span></button>`).join(''); };
+    const pop = $('#typePop'); let sel = new Set();   // 열 때마다 아무것도 체크되지 않은 상태로 시작
+    const draw = () => { $('#tList').innerHTML = TYPE_LIST.map(([id, name, sub]) => `<button type="button" class="trow ${sel.has(id) ? 'on' : ''}" data-id="${id}"><span class="tbox">${sel.has(id) ? '✓' : ''}</span><span>${name}${sub ? `<small>${sub}</small>` : ''}</span></button>`).join(''); $('#tStart').disabled = !sel.size; $('#tStart').textContent = sel.size ? '시작' : '유형을 하나 이상 골라 주세요'; };
     draw();
     $('#tList').onclick = e => {
       const b = e.target.closest('.trow'); if (!b) return; const id = b.dataset.id;
       if (id === 'rand') sel = new Set(['rand']);
-      else { sel.delete('rand'); if (sel.has(id)) sel.delete(id); else sel.add(id); if (!sel.size) sel = new Set(['rand']); }
+      else { sel.delete('rand'); if (sel.has(id)) sel.delete(id); else sel.add(id); }
       draw();
     };
     const done = v => { pop.classList.remove('open'); res(v); };
@@ -1495,7 +1496,7 @@ function finishSession(){
     </div>
     ${wrong.length ? `<button class="next" id="dWrong">다시 볼 ${wrong.length}개 바로 풀기</button>` : ''}
     <button class="next ghost" id="dHome">${curDay && key.startsWith('d') ? dayLabel(curDay) + '로 돌아가기' : '홈으로'}</button>`;
-  if (wrong.length) $('#dWrong').onclick = () => begin('retry', wrong.map(id => byId.get(id)), '틀린 단어 다시 풀기', 'note', false, true, S.types || null);
+  if (wrong.length) $('#dWrong').onclick = () => begin('retry', wrong.map(id => byId.get(id)), '틀린 단어 다시 풀기', 'note', false, true);   // 바로 다시 풀 때도 유형을 새로 고름
   $('#dHome').onclick = () => { if (curDay && key.startsWith('d')){ renderDay(); show('day'); } else goHome(); };
   sfx('done');
   window.scrollTo(0, 0);
