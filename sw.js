@@ -1,5 +1,5 @@
 // 오프라인 사용을 위한 캐시. 앱을 수정하면 VERSION 숫자를 올리세요.
-const VERSION = 'jpvocab-v18-speak';
+const VERSION = 'jpvocab-v19-flag';
 const FILES = ['./', './index.html', './xlsx.full.min.js', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

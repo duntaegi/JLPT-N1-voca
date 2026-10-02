@@ -394,6 +394,10 @@ input[type=file]{display:none}
 .qpos{margin-top:4px}
 
 /* ---- v3: 써 보기 ---- */
+.wrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.wrow .wbtn{margin:0;padding:14px 6px;font-size:15px}
+.wbtn.nbtn{border-color:var(--ng);color:var(--ng)}
+.wbtn.nbtn.on{background:var(--ngbg)}
 .wbtn{width:100%;margin:10px 0 0;background:var(--paper);color:var(--brown2);border:2px solid var(--cta);border-radius:14px;padding:14px;font-size:16px;font-weight:700}
 .wbtn:active{transform:translateY(1px)}
 html.wlock,html.wlock body{overflow:hidden}
@@ -1344,13 +1348,34 @@ function answer(i){
       <div class="wm">${esc(w.meaning)}</div>
       <div style="margin-top:8px">${posBadge(w)} <span class="tag d">${dayLabel(w.day)}${w.no ? ' · ' + w.no + '번' : ''}</span></div>
     </div><button class="speak" style="position:static" id="rSpeak" aria-label="발음 듣기">🔊</button></div>
-    <button class="wbtn" id="rWrite">✍️ 이 단어 써 보기</button>
+    ${ok ? '<div class="wrow"><button class="wbtn" id="rWrite">✍️ 이 단어 써 보기</button><button class="wbtn nbtn" id="rNote">📒 오답노트에 담기</button></div>' : '<button class="wbtn" id="rWrite">✍️ 이 단어 써 보기</button>'}
     <div class="exh">이 단어는 이렇게 씁니다</div>
     ${exHtml}
     <button class="next" id="nextBtn">${last ? '결과 보기' : '다음 문제'}</button>`;
   r.classList.add('on');
   $('#rSpeak').onclick = () => speak(wordSpeech(w));
   $('#rWrite').onclick = () => openWrite(w);
+  // 느낌으로 맞힌 단어를 직접 오답노트로 보내기 (다시 누르면 취소)
+  if ($('#rNote')){
+    let flagged = false, prev = null, oldNotice = r.querySelector('.notice') ? r.querySelector('.notice').outerHTML : '';
+    const flagNotice = '<div class="notice bad"><span class="ic">📒</span><div><b>오답노트에 담았어요</b><p>2번 연속 맞히면 오답노트에서 빠져요.</p></div></div>';
+    const putNotice = html => { const cur = r.querySelector('.notice'); if (cur) cur.remove(); if (html) r.querySelector('.verdict').insertAdjacentHTML('afterend', html); };
+    $('#rNote').onclick = () => {
+      const t = st(w.id), b = $('#rNote');
+      if (!flagged){
+        prev = {note: t.note, streak: t.streak};
+        t.note = true; t.streak = 0; S.wrong.push(w.id); flagged = true;
+        putNotice(flagNotice); b.classList.add('on'); b.textContent = '✓ 담았어요 · 누르면 취소';
+        toast('오답노트에 담았어요');
+      } else {
+        t.note = prev.note; t.streak = prev.streak;
+        const k = S.wrong.lastIndexOf(w.id); if (k >= 0) S.wrong.splice(k, 1);
+        flagged = false; putNotice(oldNotice); b.classList.remove('on'); b.textContent = '📒 오답노트에 담기';
+        toast('취소했어요');
+      }
+      saveStats(); saveSessions(); updateTop();
+    };
+  }
   r.querySelectorAll('.ex .s').forEach(b => b.onclick = () => speak(w.examples[+b.dataset.i].jp));
   $('#nextBtn').onclick = nextQuestion;
   setTimeout(() => r.scrollIntoView({behavior:'smooth', block:'start'}), 350);
@@ -1370,7 +1395,7 @@ function finishSession(){
       <div class="stat"><b style="color:var(--ng)">${S.x}</b><span>틀림</span></div>
       <div class="stat"><b>${rate}%</b><span>정답률</span></div>
     </div>
-    ${wrong.length ? `<button class="next" id="dWrong">틀린 ${wrong.length}개 바로 다시 풀기</button>` : ''}
+    ${wrong.length ? `<button class="next" id="dWrong">다시 볼 ${wrong.length}개 바로 풀기</button>` : ''}
     <button class="next ghost" id="dHome">${curDay && key.startsWith('d') ? dayLabel(curDay) + '로 돌아가기' : '홈으로'}</button>`;
   if (wrong.length) $('#dWrong').onclick = () => begin('retry', wrong.map(id => byId.get(id)), '틀린 단어 다시 풀기', 'note', false, true);
   $('#dHome').onclick = () => { if (curDay && key.startsWith('d')){ renderDay(); show('day'); } else goHome(); };
