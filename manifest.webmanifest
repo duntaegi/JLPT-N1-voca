@@ -1,6 +1,6 @@
 {
-  "name": "일본어 단어장",
-  "short_name": "단어장",
+  "name": "JLPT N1 단어장",
+  "short_name": "N1 단어장",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

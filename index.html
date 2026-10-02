@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>일본어 단어장</title>
+<title>JLPT N1 단어장</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="단어장">
+<meta name="apple-mobile-web-app-title" content="N1 단어장">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#A6DAF4">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -74,7 +74,7 @@ button:focus-visible{outline:3px solid var(--brown2);outline-offset:2px}
 
 /* home */
 .hero{background:var(--hero);padding:30px 22px 26px;position:relative;overflow:hidden}
-.hero h1{position:relative;margin:0;font-size:42px;letter-spacing:.06em;font-weight:800;color:var(--ink)}
+.hero h1{position:relative;margin:0;font-size:clamp(28px,8vw,40px);letter-spacing:.02em;font-weight:800;color:var(--ink)}
 .hero p{margin:4px 0 0;color:var(--sub);font-size:14px}
 .prog{margin-top:22px}
 .prog .row{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;color:var(--sub)}
@@ -134,6 +134,11 @@ button:focus-visible{outline:3px solid var(--brown2);outline-offset:2px}
 .opt.dim{opacity:.78}
 .opt .osub{display:inline;margin-left:8px;font-size:15px;font-weight:500;color:var(--sub);word-break:keep-all}
 .opt .osub.none{text-decoration:line-through;text-decoration-thickness:1.5px}
+.opt.hasSp{padding-right:62px}
+.opt .osp{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:50%;background:var(--bg);display:grid;place-items:center;font-size:18px;font-weight:400;touch-action:manipulation}
+.opt .osp:active{background:var(--chip)}
+.opt.locked{cursor:default}
+.opt.locked:not(.right):not(.wrong):active{background:var(--paper)}
 .opt.right .osub,.opt.wrong .osub{color:inherit}
 .opt[disabled]{pointer-events:none}
 
@@ -322,6 +327,14 @@ input[type=file]{display:none}
 .erow .pc{flex:none;color:var(--sub);font-size:17px}
 .erow .tag.e{color:var(--brown2);background:var(--chip)}
 #eItems{margin-top:10px}
+.tlist{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.trow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--paper);border:2px solid var(--line);border-radius:14px;padding:13px 14px;font-size:17px;font-weight:700;touch-action:manipulation}
+.trow .tbox{flex:none;width:26px;height:26px;border-radius:8px;border:2px solid var(--line);display:grid;place-items:center;font-size:16px;color:#fff;background:var(--paper)}
+.trow.on{border-color:var(--cta);background:var(--chip)}
+.trow.on .tbox{background:var(--cta);border-color:var(--cta)}
+.trow small{display:block;font-size:13.5px;font-weight:500;color:var(--sub);margin-top:4px;line-height:1.5}
+.trow small b{color:var(--ink);font-weight:700;background:var(--chip);border-radius:6px;padding:1px 6px;margin:0 1px}
+.trow.on small b{background:var(--paper)}
 #editPop .sheet h3{font-size:26px;margin:0}
 #editPop .mm{margin-top:2px}
 .eplabel{display:block;font-size:13px;font-weight:700;color:var(--sub);margin:16px 2px 6px}
@@ -443,8 +456,8 @@ html.wlock,html.wlock body{overflow:hidden}
 <!-- HOME -->
 <section class="screen on" id="home">
   <div class="hero">
-    <h1>単語帳</h1>
-    <p>일본어 단어 4지선다 암기</p>
+    <h1>JLPT N1 단어장</h1>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어</p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -516,6 +529,13 @@ html.wlock,html.wlock body{overflow:hidden}
   <textarea id="epInput" rows="2" maxlength="120" placeholder="뜻을 입력하세요"></textarea>
   <div class="epnote" id="epNote"></div>
   <div class="mb"><button class="btn pri" id="epSave">저장</button><button class="btn" id="epReset">원래 뜻으로 되돌리기</button><button class="btn" id="epCancel">취소</button></div>
+</div></div>
+
+<div class="modal" id="typePop"><div class="sheet">
+  <h3>어떤 유형으로 풀까요?</h3>
+  <div class="mm">여러 개를 함께 고를 수 있어요. 랜덤은 따로만 선택돼요.</div>
+  <div class="tlist" id="tList"></div>
+  <div class="mb"><button class="btn pri" id="tStart">시작</button><button class="btn" id="tCancel">취소</button></div>
 </div></div>
 
 <!-- QUIZ -->
@@ -890,6 +910,7 @@ function show(id){ stopSpeak(); closeRate(); if ($('#write').classList.contains(
 function goHome(){ renderHome(); show('home'); }
 window.handleBack = function(){
   if ($('#modal').classList.contains('open')){ closeModal(); return true; }
+  if ($('#typePop').classList.contains('open')){ $('#tCancel').click(); return true; }
   if ($('#editPop').classList.contains('open')){ closeEditPop(); return true; }
   if ($('#wedit').classList.contains('on')){ closeEdit(); return true; }
   if ($('#write').classList.contains('on')){ closeWrite(); return true; }
@@ -1076,16 +1097,50 @@ function weighted(ws){ // 오답노트·많이 틀린 단어가 앞쪽에 오도
 }
 
 /* ---------- sessions ---------- */
-async function begin(key, ws, label, kind, keepOrder, fresh){
+/* 문제 유형 고르기 (학습하기): 랜덤이거나, 네 가지 중 여러 개 */
+const TYPE_PAIRS = {t1: [['kana','kanji']], t2: [['kanji','kana']], t3: [['meaning','kanji'], ['meaning','kana']], t4: [['kanji','meaning'], ['kana','meaning']]};
+const TYPE_LIST = [
+  ['rand', '🎲 랜덤', '아래 유형이 모두 섞여서 나와요'],
+  ['t1', '히라가나 → 한자', '<b>じょうほう</b> → <b>情報</b>'],
+  ['t2', '한자 → 히라가나', '<b>情報</b> → <b>じょうほう</b>'],
+  ['t3', '뜻 → 한자 · 읽기', '<b>정보</b> → <b>情報</b>, <b>じょうほう</b>'],
+  ['t4', '한자 · 읽기 → 뜻', '<b>情報</b>, <b>じょうほう</b> → <b>정보</b>']];
+let qTypes = (() => { const v = get('jv2_qtypes', ['rand']); return Array.isArray(v) && v.length && v.every(x => x === 'rand' || TYPE_PAIRS[x]) ? v : ['rand']; })();
+function askTypes(init){
+  return new Promise(res => {
+    const pop = $('#typePop'); let sel = new Set(init && init.length ? init : qTypes);
+    const draw = () => { $('#tList').innerHTML = TYPE_LIST.map(([id, name, sub]) => `<button type="button" class="trow ${sel.has(id) ? 'on' : ''}" data-id="${id}"><span class="tbox">${sel.has(id) ? '✓' : ''}</span><span>${name}${sub ? `<small>${sub}</small>` : ''}</span></button>`).join(''); };
+    draw();
+    $('#tList').onclick = e => {
+      const b = e.target.closest('.trow'); if (!b) return; const id = b.dataset.id;
+      if (id === 'rand') sel = new Set(['rand']);
+      else { sel.delete('rand'); if (sel.has(id)) sel.delete(id); else sel.add(id); if (!sel.size) sel = new Set(['rand']); }
+      draw();
+    };
+    const done = v => { pop.classList.remove('open'); res(v); };
+    $('#tStart').onclick = () => { qTypes = [...sel]; put('jv2_qtypes', qTypes); done(qTypes); };
+    $('#tCancel').onclick = () => done(null);
+    pop.onclick = e => { if (e.target === pop) done(null); };
+    pop.classList.add('open');
+  });
+}
+async function begin(key, ws, label, kind, keepOrder, fresh, presetTypes){
   if (words.length < 4){ modal('단어가 부족합니다', '4지선다 문제를 만들려면 단어가 4개 이상 필요합니다.', [['확인', 1, 'pri']]); return; }
   if (!fresh && sessions[key]){
     const S = sessions[key];
     const v = await modal('이어서 풀까요?', `${esc(S.label)} · ${S.idx} / ${S.ids.length}까지 풀었어요`, [['이어서 풀기', 'go', 'pri'], ['처음부터 다시', 'new'], ['취소', null]]);
-    if (v === 'go') return runSession(key);
+    if (v === 'go'){
+      // 이어서 풀 때도 유형을 다시 고르게 함 (고른 유형은 남은 문제부터 적용)
+      if (!S.preset){ const t = await askTypes(S.types || ['rand']); if (!t) return; S.types = t.includes('rand') ? null : t; saveSessions(); }
+      return runSession(key);
+    }
     if (v !== 'new') return;
   }
+  let types = null;
+  if (presetTypes !== undefined) types = presetTypes;   // 바로 다시 풀기는 방금 고른 유형을 그대로 씀
+  else { const t = await askTypes(); if (!t) return; types = t.includes('rand') ? null : t; }
   const ids = ws.map(w => w.id);
-  sessions[key] = {ids: keepOrder ? ids : shuffle(ids), idx:0, o:0, x:0, wrong:[], label, kind};
+  sessions[key] = {ids: keepOrder ? ids : shuffle(ids), idx:0, o:0, x:0, wrong:[], label, kind, types, preset: presetTypes !== undefined};
   saveSessions(); runSession(key);
 }
 function runSession(key){
@@ -1220,11 +1275,17 @@ function fakeReadings(w, need){
 }
 const glen = t => Array.from(String(t || '')).length;
 
-function buildQuestion(w){
+function buildQuestion(w, types){
   const fields = ['kana', 'meaning']; if (w.kanji) fields.unshift('kanji');
   const pairs = [];
   fields.forEach(p => fields.forEach(a => { if (p !== a) pairs.push([p, a]); }));
-  for (const [p, a] of shuffle(pairs)){
+  // 고른 유형을 먼저 시도하고, 그 단어로 만들 수 없을 때(예: 한자가 없는 단어)만 다른 유형으로 대신함
+  let order = shuffle(pairs);
+  if (types && types.length){
+    const ok = new Set(types.flatMap(t => (TYPE_PAIRS[t] || []).map(x => x.join('>'))));
+    order = [...order.filter(x => ok.has(x.join('>'))), ...order.filter(x => !ok.has(x.join('>')))];
+  }
+  for (const [p, a] of order){
     const L = glen(w[a]), scored = [];
     for (const o of words){
       if (o.id === w.id || !o[a] || o[a] === w[a]) continue;
@@ -1256,15 +1317,14 @@ function buildQuestion(w){
   }
   return null;
 }
-/* 진행 막대에 25개마다 눈금(칸 나눔)을 그림: 100문제면 4칸, 칠해진 칸 수로 얼마나 왔는지 한눈에 보임 */
-const TICK_EVERY = 25;
-function drawTicks(track, total){
-  if (!track || track.dataset.total === String(total)) return;
-  track.dataset.total = total;
+/* 진행 막대를 4칸으로 나눔: 칠해진 칸 수로 얼마나 왔는지 한눈에 보임 */
+function drawTicks(track, total){   // 문제 수와 상관없이 항상 4등분 (100문제면 25개씩, 34문제면 8.5개씩)
+  const key = total >= 4 ? 'q' : 'none';
+  if (!track || track.dataset.ticks === key) return;
+  track.dataset.ticks = key;
   track.querySelectorAll('u').forEach(u => u.remove());
-  for (let k = TICK_EVERY; k < total; k += TICK_EVERY){
-    const u = document.createElement('u'); u.style.left = (k / total * 100) + '%'; track.appendChild(u);
-  }
+  if (key === 'none') return;
+  for (let k = 1; k < 4; k++){ const u = document.createElement('u'); u.style.left = (k * 25) + '%'; track.appendChild(u); }
 }
 function updateTop(){
   const S = sessions[Q.key];
@@ -1282,7 +1342,7 @@ function nextQuestion(){
   let q = null;
   while (S.idx < S.ids.length){
     const w = byId.get(S.ids[S.idx]);
-    if (w && (q = buildQuestion(w))) break;
+    if (w && (q = buildQuestion(w, S.types))) break;
     S.idx++;
   }
   if (!q) return finishSession();
@@ -1325,6 +1385,12 @@ function optSub(q, j){
   }
   return src ? `${src.kanji ? src.kanji + ' · ' : ''}${src.kana}` : '';
 }
+$('#opts').addEventListener('click', e => {   // 보기 옆 🔊: 그 보기에 해당하는 단어를 읽어 줌
+  const sp = e.target.closest('.osp'); if (!sp) return;
+  e.stopPropagation(); e.preventDefault();
+  const j = [...$('#opts').children].indexOf(sp.parentElement), src = Q.cur && Q.cur.srcs && Q.cur.srcs[j];
+  if (src) speak(wordSpeech(src));
+}, true);
 function answer(i){
   if (Q.answered) return;
   Q.answered = true;
@@ -1351,10 +1417,11 @@ function answer(i){
   saveStats(); saveSessions(); updateTop();
 
   [...$('#opts').children].forEach((b, j) => {
-    b.disabled = true;
+    b.classList.add('locked');   // 안쪽 🔊 버튼이 눌리도록 disabled는 쓰지 않음 (이미 답한 문제는 answer()가 무시함)
     if (j === q.correct) b.classList.add('right'); else if (j === i) b.classList.add('wrong'); else b.classList.add('dim');
     const sub = optSub(q, j);
     if (sub) b.insertAdjacentHTML('beforeend', `<span class="osub${sub === '단어장에 없는 읽기' ? ' none' : ''}">(${esc(sub)})</span>`);   // 없는 읽기는 괄호 설명에 취소선
+    if (q.srcs && q.srcs[j]){ b.classList.add('hasSp'); b.insertAdjacentHTML('beforeend', '<span class="osp" role="button" aria-label="발음 듣기">🔊</span>'); }
   });
   const m = $('#mark');
   m.innerHTML = ok ? '<div class="o"></div>' : '<div class="x"></div>';
@@ -1428,7 +1495,7 @@ function finishSession(){
     </div>
     ${wrong.length ? `<button class="next" id="dWrong">다시 볼 ${wrong.length}개 바로 풀기</button>` : ''}
     <button class="next ghost" id="dHome">${curDay && key.startsWith('d') ? dayLabel(curDay) + '로 돌아가기' : '홈으로'}</button>`;
-  if (wrong.length) $('#dWrong').onclick = () => begin('retry', wrong.map(id => byId.get(id)), '틀린 단어 다시 풀기', 'note', false, true);
+  if (wrong.length) $('#dWrong').onclick = () => begin('retry', wrong.map(id => byId.get(id)), '틀린 단어 다시 풀기', 'note', false, true, S.types || null);
   $('#dHome').onclick = () => { if (curDay && key.startsWith('d')){ renderDay(); show('day'); } else goHome(); };
   sfx('done');
   window.scrollTo(0, 0);
@@ -1767,7 +1834,10 @@ function openWrite(w){
   $('#wSpeak').onclick = () => speak(wordSpeech(w));
   renderWrite();
 }
-function closeWrite(){ closeRate(); WR.cur = null; $('#write').classList.remove('on'); document.documentElement.classList.remove('wlock'); }
+let writeClosedAt = 0;
+// 쓰기 창이 닫힌 직후 같은 터치가 아래 화면의 버튼(다음 문제 등)까지 눌러 버리는 것을 막음
+document.addEventListener('click', e => { if (e.isTrusted && Date.now() - writeClosedAt < 700){ e.stopPropagation(); e.preventDefault(); } }, true);
+function closeWrite(){ writeClosedAt = Date.now(); closeRate(); WR.cur = null; $('#write').classList.remove('on'); document.documentElement.classList.remove('wlock'); }
 function saveWritePref(){ put('jv2_write', {mode: WR.mode}); }
 function renderWrite(){
   const w = WR.w;
