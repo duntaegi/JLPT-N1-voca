@@ -481,9 +481,7 @@ html.wlock,html.wlock body{overflow:hidden}
       </div>
     </div>
 
-    <div class="sech"><b>일차별 학습</b>
-      <span class="seg"><button id="lyA" onclick="setLayout('A')">보기 1</button><button id="lyB" onclick="setLayout('B')">보기 2</button></span>
-    </div>
+    <div class="sech"><b>일차별 학습</b></div>
     <div id="days"></div>
 
     <div class="menu menu3" style="margin-top:24px;margin-bottom:28px">
@@ -714,7 +712,7 @@ function load(){
   sessions = get('jv2_sessions', {}) || {};
   soundOn = get('jv2_sound', true);
   range = get('jv2_range', null);
-  layout = get('jv2_layout', 'A');
+  layout = 'A';   // 보기 2(목록)는 없애고 보기 1(격자)만 씀
   flashSaves = get('jv2_flash', {}) || {};
   rounds = get('jv2_rounds', {}) || {};
   reindex();
@@ -922,7 +920,6 @@ window.handleBack = function(){
 };
 
 /* ---------- home ---------- */
-function setLayout(l){ layout = l; put('jv2_layout', l); renderDays(); }
 function dayStat(d){
   const ws = dayWords(d); let done = 0, note = 0;
   ws.forEach(w => { if (isStudied(w)) done++; if (isNote(w)) note++; });
@@ -954,7 +951,6 @@ function renderHome(){
   renderDays();
 }
 function renderDays(){
-  $('#lyA').classList.toggle('on', layout === 'A'); $('#lyB').classList.toggle('on', layout === 'B');
   const box = $('#days'), days = dayList();
   if (layout === 'A'){
     box.className = 'dgrid';
