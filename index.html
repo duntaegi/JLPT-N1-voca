@@ -1031,7 +1031,9 @@ function renderDay(){
 }
 function updateMarkUI(){
   const n = markedIn(curDay).length, sub = $('#mkSub');
-  if (sub) sub.textContent = n ? `${n}개 체크됨 · 체크한 단어끼리 보기로 나와요` : '아래 단어를 눌러 체크하세요';
+  const rs = sessions['d' + curDay + 'mark'];
+  if (sub) sub.textContent = n ? (rs ? `이어서 ${rs.idx}/${rs.ids.length} · ${n}개 체크됨` : `${n}개 체크됨 · 이 단어들만 문제로 나와요`) : '아래 단어를 눌러 체크하세요';
+  $('#mbGo').textContent = n && rs ? '이어서 풀기' : '체크한 단어 풀기';
   $('#markBar').classList.toggle('on', n > 0); $('#mbCnt').textContent = `${n}개 체크`;
   $('#dBody').classList.toggle('hasbar', n > 0);
 }
@@ -1137,7 +1139,7 @@ function dayAction(d, k){
   if (k === 'learn') return begin('d' + d + 'learn', ws, `${L} 학습`, 'learn');
   if (k === 'card') return dayFlash(d);
   if (k === 'rev'){ const r = ws.filter(isStudied); if (!r.length) return toast(`${L} 학습하기를 먼저 해주세요`); return begin('d' + d + 'rev', weighted(r), `${L} 복습`, 'review', true); }
-  if (k === 'mark'){ const m = markedIn(d); if (!m.length) return toast('아래 단어를 눌러 체크한 뒤 풀 수 있어요'); return begin('d' + d + 'mark', m, `${L} 체크한 단어`, 'learn', false, true, undefined, m.map(w => w.id)); }
+  if (k === 'mark'){ const m = markedIn(d); if (!m.length) return toast('아래 단어를 눌러 체크한 뒤 풀 수 있어요'); return begin('d' + d + 'mark', m, `${L} 체크한 단어`, 'learn', false, false); }
   if (k === 'note'){ const n = ws.filter(isNote); if (!n.length) return toast(`${L} 오답노트가 비어 있어요`); return begin('d' + d + 'note', n, `${L} 오답노트`, 'note'); }
 }
 
@@ -1198,7 +1200,7 @@ function askTypes(init){
     pop.classList.add('open');
   });
 }
-async function begin(key, ws, label, kind, keepOrder, fresh, presetTypes, pool){
+async function begin(key, ws, label, kind, keepOrder, fresh, presetTypes){
   if (words.length < 4){ modal('단어가 부족합니다', '4지선다 문제를 만들려면 단어가 4개 이상 필요합니다.', [['확인', 1, 'pri']]); return; }
   if (!fresh && sessions[key]){
     const S = sessions[key];
@@ -1214,7 +1216,7 @@ async function begin(key, ws, label, kind, keepOrder, fresh, presetTypes, pool){
   if (presetTypes !== undefined) types = presetTypes;   // 바로 다시 풀기는 방금 고른 유형을 그대로 씀
   else { const t = await askTypes(); if (!t) return; types = t.includes('rand') ? null : t; }
   const ids = ws.map(w => w.id);
-  sessions[key] = {ids: keepOrder ? ids : shuffle(ids), idx:0, o:0, x:0, wrong:[], label, kind, types, preset: presetTypes !== undefined, pool: pool || null};
+  sessions[key] = {ids: keepOrder ? ids : shuffle(ids), idx:0, o:0, x:0, wrong:[], label, kind, types, preset: presetTypes !== undefined};
   saveSessions(); runSession(key);
 }
 function runSession(key){
@@ -1226,7 +1228,8 @@ function runSession(key){
 function quitQuiz(){
   const S = sessions[Q.key];
   if (curDay && Q.key.startsWith('d')){ renderDay(); show('day'); } else goHome();
-  if (S) toast(`${S.idx} / ${S.ids.length}까지 저장했어요. 나중에 이어서 풀 수 있어요`);
+  if (Q.key === 'retry' || Q.key === 'retryH'){ delete sessions[Q.key]; saveSessions(); toast('다시 풀기를 그만뒀어요'); }   // 이 두 가지는 이어서 풀 수 없음
+  else if (S) toast(`${S.idx} / ${S.ids.length}까지 저장했어요. 나중에 이어서 풀 수 있어요`);
 }
 
 /* ---------- quiz ---------- */
@@ -1349,8 +1352,7 @@ function fakeReadings(w, need){
 }
 const glen = t => Array.from(String(t || '')).length;
 
-function buildQuestion(w, types, pool){
-  const poolSet = pool && pool.length > 1 ? new Set(pool) : null;   // 체크한 단어끼리 보기로 묶기
+function buildQuestion(w, types){
   const fields = ['kana', 'meaning']; if (w.kanji) fields.unshift('kanji');
   const pairs = [];
   fields.forEach(p => fields.forEach(a => { if (p !== a) pairs.push([p, a]); }));
@@ -1370,12 +1372,10 @@ function buildQuestion(w, types, pool){
       if (meaningOverlap(w.meaning, o.meaning)) continue;                  // 뜻이 겹침
       const dl = Math.abs(glen(o[a]) - L);
       let d;
-      const inPool = poolSet && poolSet.has(o.id);
-      if (a === 'kana'){ d = readDist(w, o); if (!inPool && (d > .75 || dl > 1)) continue; d += dl * .3; }   // 정말 헷갈리는 실제 단어만
-      else if (a === 'kanji'){ if (!inPool && dl > 1) continue; d = kanjiDist(w, o) + readDist(w, o) * .4 + dl * 2; }
+      if (a === 'kana'){ d = readDist(w, o); if (d > .75 || dl > 1) continue; d += dl * .3; }   // 정말 헷갈리는 실제 단어만
+      else if (a === 'kanji'){ if (dl > 1) continue; d = kanjiDist(w, o) + readDist(w, o) * .4 + dl * 2; }
       else d = Math.min(kanjiDist(w, o), readDist(w, o) * .8) + readDist(w, o) * .2 + Math.min(dl, 6) * .08;
       if ((o.pos || 'n') !== (w.pos || 'n')) d += .6;                        // 같은 품사일수록 헷갈림
-      if (inPool) d -= 100;                                                  // 체크한 단어를 보기로 먼저 씀
       scored.push({o, d: d + Math.random() * .25});                        // 비슷한 것끼리는 매번 조금씩 바뀌게
     }
     scored.sort((x, y) => x.d - y.d);
@@ -1419,7 +1419,7 @@ function nextQuestion(){
   let q = null;
   while (S.idx < S.ids.length){
     const w = byId.get(S.ids[S.idx]);
-    if (w && (q = buildQuestion(w, S.types, S.pool))) break;
+    if (w && (q = buildQuestion(w, S.types))) break;
     S.idx++;
   }
   if (!q) return finishSession();
@@ -1587,7 +1587,7 @@ function finishSession(){
     ${hm.length ? `<button class="next ghost" id="dHard">🤔 헷갈려요 ${hm.length}개만 풀기</button>` : ''}
     <button class="next ghost" id="dHome">${curDay && key.startsWith('d') ? dayLabel(curDay) + '로 돌아가기' : '홈으로'}</button>`;
   if (wrong.length) $('#dWrong').onclick = () => begin('retry', wrong.map(id => byId.get(id)), '틀린 단어 다시 풀기', 'note', false, true);   // 바로 다시 풀 때도 유형을 새로 고름
-  if (hm.length) $('#dHard').onclick = () => begin('retryH', hm.map(id => byId.get(id)), '헷갈리는 단어 풀기', 'learn', false, true, undefined, hm);
+  if (hm.length) $('#dHard').onclick = () => begin('retryH', hm.map(id => byId.get(id)), '헷갈리는 단어 풀기', 'learn', false, true);
   $('#dHome').onclick = () => { if (curDay && key.startsWith('d')){ renderDay(); show('day'); } else goHome(); };
   sfx('done');
   window.scrollTo(0, 0);
