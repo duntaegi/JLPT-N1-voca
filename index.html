@@ -741,6 +741,10 @@ let rounds = {};
 let marks = {};   // 헷갈리는 단어 체크: {단어id: true}
 const saveMarks = () => put('jv2_marks', marks);
 const markedIn = d => dayWords(d).filter(w => marks[w.id]);
+// 체크한 단어 세션은 '그때 체크해 둔 단어 목록'이 지금과 같을 때만 이어서 풀 수 있음 (체크를 바꿨다면 옛 목록으로 풀지 않게)
+const markSig = d => markedIn(d).map(w => w.id).sort().join('\n');
+const markKeyDay = key => { const m = /^d(\d+)mark$/.exec(key || ''); return m ? +m[1] : 0; };
+function validMarkSession(d){ const S = sessions['d' + d + 'mark']; return S && S.markSig === markSig(d) ? S : null; }
 const MAXR = 5;
 const saveRounds = () => put('jv2_rounds', rounds);
 const roundOf = d => Math.min(MAXR, Math.max(0, +rounds[d] || 0));
@@ -1031,7 +1035,7 @@ function renderDay(){
 }
 function updateMarkUI(){
   const n = markedIn(curDay).length, sub = $('#mkSub');
-  const rs = sessions['d' + curDay + 'mark'];
+  const rs = validMarkSession(curDay);
   if (sub) sub.textContent = n ? (rs ? `이어서 ${rs.idx}/${rs.ids.length} · ${n}개 체크됨` : `${n}개 체크됨 · 이 단어들만 문제로 나와요`) : '아래 단어를 눌러 체크하세요';
   $('#mbGo').textContent = n && rs ? '이어서 풀기' : '체크한 단어 풀기';
   $('#markBar').classList.toggle('on', n > 0); $('#mbCnt').textContent = `${n}개 체크`;
@@ -1134,12 +1138,18 @@ function drawRoundPick(d){
   box.innerHTML = Array.from({length: MAXR}, (_, i) => `<button type="button" class="rc ${i < n ? 'on' : ''}" data-n="${i + 1}" aria-label="${i + 1}회독">${i + 1}</button>`).join('');
   box.querySelectorAll('.rc').forEach(b => b.onclick = () => { setRound(d, +b.dataset.n); drawRoundPick(d); renderDays(); });
 }
-function dayAction(d, k){
+async function dayAction(d, k){
   const ws = dayWords(d), L = dayLabel(d);
   if (k === 'learn') return begin('d' + d + 'learn', ws, `${L} 학습`, 'learn');
   if (k === 'card') return dayFlash(d);
   if (k === 'rev'){ const r = ws.filter(isStudied); if (!r.length) return toast(`${L} 학습하기를 먼저 해주세요`); return begin('d' + d + 'rev', weighted(r), `${L} 복습`, 'review', true); }
-  if (k === 'mark'){ const m = markedIn(d); if (!m.length) return toast('아래 단어를 눌러 체크한 뒤 풀 수 있어요'); return begin('d' + d + 'mark', m, `${L} 체크한 단어`, 'learn', false, false); }
+  if (k === 'mark'){ const m = markedIn(d); if (!m.length) return toast('아래 단어를 눌러 체크한 뒤 풀 수 있어요'); {
+      const key = 'd' + d + 'mark';
+      if (sessions[key] && !validMarkSession(d)){ delete sessions[key]; saveSessions(); }   // 체크가 바뀌었으면 옛 세션은 버리고 새로 시작
+      await begin(key, m, `${L} 체크한 단어`, 'learn', false, false);
+      if (sessions[key]){ sessions[key].markSig = markSig(d); saveSessions(); }
+      return;
+    } }
   if (k === 'note'){ const n = ws.filter(isNote); if (!n.length) return toast(`${L} 오답노트가 비어 있어요`); return begin('d' + d + 'note', n, `${L} 오답노트`, 'note'); }
 }
 
@@ -1449,6 +1459,7 @@ function nextQuestion(){
     const id = q.w.id;
     if (marks[id]){ delete marks[id]; S.hmarks = (S.hmarks || []).filter(x => x !== id); toast('표시를 풀었어요'); }
     else { marks[id] = true; S.hmarks = [...(S.hmarks || []), id]; toast('헷갈리는 단어에 담았어요'); }
+    const md = markKeyDay(Q.key); if (md) S.markSig = markSig(md);   // 체크한 단어 풀이 중의 표시 변경은 이 세션에도 반영
     saveMarks(); saveSessions(); drawHard();
   };
   window.scrollTo(0, 0);
