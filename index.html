@@ -464,6 +464,58 @@ html.wlock,html.wlock body{overflow:hidden}
 .wtools button{border-radius:14px;padding:14px 4px;font-size:15px;font-weight:700;background:var(--paper);border:2px solid var(--line)}
 .wtools button.pri{background:var(--cta);border-color:var(--cta);color:var(--oncta);box-shadow:0 3px 0 var(--bar2)}
 .wtools button:active{transform:translateY(1px)}
+
+/* ---- 타이머 칩 · 캘린더 · 나눠 풀기 ---- */
+.bar{padding-right:104px}
+.hero{padding-right:110px}
+#timerPill{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:12px;z-index:26;height:34px;padding:0 12px;border-radius:99px;background:var(--paper);color:var(--ink);border:2px solid var(--cta);font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:5px;box-shadow:0 2px 6px rgba(15,53,80,.18)}
+#modal{z-index:31}
+#timerPill.pending{border-style:dashed;color:var(--sub)}
+#timerPill i{font-style:normal;font-size:13px}
+.dc.calt{background:var(--chip);border-color:var(--cta)}
+.dc.calt b{font-size:16px}
+.chero{background:var(--hero);border-radius:18px;padding:16px 18px;display:flex;gap:14px;align-items:center;justify-content:space-between}
+.chero .big{font-size:30px;font-weight:800;line-height:1.1}
+.chero small{display:block;color:var(--sub);font-size:13px;margin-top:3px}
+.chero .fire{text-align:right;font-size:13px;color:var(--sub)}
+.chero .fire b{display:block;font-size:22px;color:var(--ink)}
+.ctabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:14px 0 10px}
+.ctabs button{padding:10px 0;border-radius:12px;font-weight:800;font-size:15px;background:var(--chip);color:var(--sub)}
+.ctabs button.on{background:var(--cta);color:var(--oncta)}
+.cnav{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.cnav b{flex:1;text-align:center;font-size:17px}
+.cnav button{min-width:44px;height:40px;border-radius:12px;background:var(--paper);border:2px solid var(--line);font-size:16px;font-weight:700;padding:0 10px}
+.csum{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.csum .stat b{font-size:20px}
+.cmsg{text-align:center;color:var(--sub);font-size:14px;margin:0 0 12px}
+.cgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cgrid .dow{text-align:center;font-size:12px;color:var(--sub);font-weight:700;padding:2px 0}
+.cgrid .dow.su{color:var(--ng)}
+.cc{min-height:62px;border-radius:12px;background:var(--paper);border:1px solid var(--line);padding:5px 2px;text-align:center;font-size:14px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:2px}
+.cc small{font-size:11px;font-weight:700;color:var(--sub)}
+.cc.empty{background:transparent;border-color:transparent}
+.cc.l1{background:color-mix(in srgb,var(--cta) 22%,var(--paper))}
+.cc.l2{background:color-mix(in srgb,var(--cta) 45%,var(--paper))}
+.cc.l3{background:color-mix(in srgb,var(--cta) 70%,var(--paper))}
+.cc.l4{background:var(--cta);color:var(--oncta)}
+.cc.l4 small,.cc.l3 small{color:inherit}
+.cc.now{outline:3px solid var(--brown2);outline-offset:-1px}
+.crow{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;margin-bottom:6px;border-radius:12px;background:var(--paper);border:1px solid var(--line);text-align:left}
+.crow .l{width:78px;font-weight:700;font-size:14px}
+.crow .bar2{flex:1;height:12px;border-radius:99px;background:var(--chip);overflow:hidden}
+.crow .bar2 i{display:block;height:100%;background:var(--cta)}
+.crow .t{width:74px;text-align:right;font-size:13px;font-weight:700;color:var(--sub)}
+.cmon{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cmon button{border-radius:14px;background:var(--paper);border:1px solid var(--line);padding:12px 4px;text-align:center}
+.cmon button b{display:block;font-size:16px}
+.cmon button small{display:block;font-size:12px;color:var(--sub);margin-top:3px}
+.ent{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;margin-bottom:8px;border-radius:12px;background:var(--paper);border:1px solid var(--line);text-align:left}
+.ent b{flex:1;font-size:15px}
+.ent span{color:var(--sub);font-size:14px;font-weight:700}
+.ent.live{border-style:dashed;opacity:.8}
+.lfield{display:block;font-size:13px;color:var(--sub);font-weight:700;margin:10px 0 4px}
+#logPop input{width:100%;font-size:17px;padding:11px 12px;border-radius:12px;border:2px solid var(--line);background:var(--paper);color:var(--ink)}
+.dprog{font-size:13px;color:var(--sub);text-align:center;margin-top:10px}
 </style>
 </head>
 <body>
@@ -522,6 +574,33 @@ html.wlock,html.wlock body{overflow:hidden}
   <div class="wrap" id="dBody"></div>
   <div class="markbar" id="markBar"><span id="mbCnt">0개 체크</span><button type="button" class="btn" id="mbClear">해제</button><button type="button" class="btn pri" id="mbGo">체크한 단어 풀기</button></div>
 </section>
+
+
+<button id="timerPill" type="button" aria-label="오늘 공부 시간"><i>⏱</i><span id="tpTxt">0:00</span></button>
+
+<!-- 캘린더 -->
+<section class="screen" id="cal">
+  <div class="bar">
+    <button class="icon" onclick="goHome()" aria-label="뒤로">←</button>
+    <h2>캘린더</h2>
+  </div>
+  <div class="wrap">
+    <div class="chero"><div><small>오늘 공부한 시간</small><div class="big" id="cToday">0분</div><small id="cTodayW"></small></div><div class="fire"><span>연속 공부</span><b id="cStreak">0일</b></div></div>
+    <div class="ctabs" id="cTabs"><button data-v="day">일</button><button data-v="week">주</button><button data-v="month">월</button><button data-v="year">연</button></div>
+    <div class="cnav"><button id="cPrev">‹</button><b id="cLabel"></b><button id="cNext">›</button><button id="cNow">오늘</button></div>
+    <div class="csum" id="cSum"></div>
+    <p class="cmsg" id="cMsg"></p>
+    <div id="cBody"></div>
+  </div>
+</section>
+
+<div class="modal" id="logPop"><div class="sheet">
+  <h3 id="lpTitle">공부 기록 고치기</h3>
+  <label class="lfield" for="lpDate">날짜</label><input type="date" id="lpDate">
+  <label class="lfield" for="lpTime">시작 시각</label><input type="time" id="lpTime">
+  <label class="lfield" for="lpMin">공부한 시간 (분)</label><input type="number" id="lpMin" min="1" max="1440" inputmode="numeric">
+  <div class="mb" style="margin-top:14px"><button class="btn pri" id="lpSave">저장</button><button class="btn" id="lpDel">이 기록 지우기</button><button class="btn" id="lpCancel">취소</button></div>
+</div></div>
 
 <!-- 뜻 수정 -->
 <section class="screen" id="wedit">
@@ -732,6 +811,8 @@ function load(){
   flashSaves = get('jv2_flash', {}) || {};
   rounds = get('jv2_rounds', {}) || {};
   marks = get('jv2_marks', {}) || {};
+  chunks = get('jv2_chunks', {}) || {};
+  studyLog = get('jv2_log', []) || []; if (!Array.isArray(studyLog)) studyLog = [];
   reindex();
 }
 const saveWords = () => { reindex(); put('jv_words_ed1a5179', words); };
@@ -927,6 +1008,165 @@ async function pickRange(title){
   return r;
 }
 
+/* ---------- 공부 시간 타이머 · 캘린더 ---------- */
+/* 앱을 열면 자동으로 재고, 닫거나 홈 화면으로 나가면 멈춤. 1분을 넘긴 것만 기록해요. */
+let studyLog = [];   // [{s: 시작ms, e: 끝ms}]
+const saveLog = () => put('jv2_log', studyLog);
+const MIN_REC = 60000;
+let seg = null;
+const pad2 = n => String(n).padStart(2, '0');
+const dkey = ms => { const d = new Date(ms); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); };
+const keyToDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+function fmtDur(ms){ const m = Math.floor(ms / 60000); if (m < 60) return m + '분'; const h = Math.floor(m / 60), r = m % 60; return r ? `${h}시간 ${r}분` : `${h}시간`; }
+function fmtClock(ms){ const t = Math.floor(ms / 1000), h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60; return h ? `${h}:${pad2(m)}:${pad2(s)}` : `${m}:${pad2(s)}`; }
+function segStart(){ if (seg) return; seg = {s: Date.now()}; put('jv2_seg', {s: seg.s, hb: seg.s}); }
+function segEnd(){
+  if (!seg) return;
+  const e = Date.now();
+  if (e - seg.s > MIN_REC){ studyLog.push({s: seg.s, e}); saveLog(); }
+  seg = null; try { localStorage.removeItem('jv2_seg'); } catch(err){}
+}
+function segRecover(){   // 앱이 강제 종료됐다면 마지막으로 저장해 둔 시각까지만 기록
+  const old = get('jv2_seg', null);
+  if (old && old.s && old.hb && old.hb - old.s > MIN_REC && !studyLog.some(x => x.s === old.s)){ studyLog.push({s: old.s, e: old.hb}); saveLog(); }
+  try { localStorage.removeItem('jv2_seg'); } catch(err){}
+}
+function logByDate(){
+  const m = {};
+  studyLog.forEach(x => { const k = dkey(x.s); (m[k] = m[k] || {ms: 0, n: 0}); m[k].ms += Math.max(0, x.e - x.s); m[k].n++; });
+  if (seg && Date.now() - seg.s > MIN_REC){ const k = dkey(seg.s); (m[k] = m[k] || {ms: 0, n: 0}); m[k].ms += Date.now() - seg.s; }
+  return m;
+}
+function todayMs(){
+  const k = today(); let t = 0;
+  studyLog.forEach(x => { if (dkey(x.s) === k) t += Math.max(0, x.e - x.s); });
+  if (seg) t += Date.now() - seg.s;
+  return t;
+}
+function tickTimer(){
+  const pill = $('#timerPill'); if (!pill) return;
+  $('#tpTxt').textContent = fmtClock(todayMs());
+  pill.classList.toggle('pending', !!seg && Date.now() - seg.s <= MIN_REC);
+  if ($('#cal').classList.contains('on')) paintCalTop();
+}
+let tickN = 0;
+setInterval(() => { if (document.hidden) return; tickN++; if (seg && tickN % 5 === 0) put('jv2_seg', {s: seg.s, hb: Date.now()}); tickTimer(); }, 1000);
+document.addEventListener('visibilitychange', () => { if (document.hidden) segEnd(); else { segStart(); tickTimer(); } });
+window.addEventListener('pagehide', segEnd);
+window.addEventListener('pageshow', e => { if (e.persisted){ segStart(); tickTimer(); } });
+$('#timerPill').onclick = () => {
+  const run = seg ? Date.now() - seg.s : 0;
+  toast(`오늘 ${fmtDur(todayMs())} 공부했어요` + (seg ? (run > MIN_REC ? ' · 지금 기록 중' : ' · 1분이 지나면 기록돼요') : ''));
+};
+
+/* 캘린더 */
+let calView = 'month', calDate = new Date();
+const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+function streakInfo(by){
+  const days = new Set(Object.keys(by).filter(k => by[k].ms >= 1000));
+  let cur = 0; const d = new Date(); d.setHours(0, 0, 0, 0);
+  if (!days.has(dkey(d.getTime()))) d.setDate(d.getDate() - 1);   // 오늘 아직 안 했어도 어제까지 이어졌으면 유지
+  while (days.has(dkey(d.getTime()))){ cur++; d.setDate(d.getDate() - 1); }
+  return cur;
+}
+function sumRange(by, a, b){   // a~b 날짜(포함)
+  let ms = 0, n = 0; const d = new Date(a);
+  while (d <= b){ const x = by[dkey(d.getTime())]; if (x && x.ms >= 1000){ ms += x.ms; n++; } d.setDate(d.getDate() + 1); }
+  return {ms, n};
+}
+function paintCalTop(){
+  const by = logByDate(), t = today();
+  $('#cToday').textContent = fmtDur(todayMs());
+  let td = 0; for (const id in stats){ if (stats[id].last === t) td++; }
+  $('#cTodayW').textContent = `오늘 푼 단어 ${td}개`;
+  $('#cStreak').textContent = streakInfo(by) + '일';
+}
+function openCal(){ calView = 'month'; calDate = new Date(); renderCal(); show('cal'); }
+function renderCal(){
+  const by = logByDate(), t0 = new Date(calDate); t0.setHours(0, 0, 0, 0);
+  paintCalTop();
+  $('#cTabs').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === calView));
+  let a, b, label, body = '';
+  const cellL = ms => ms < 1000 ? '' : ms < 15 * 60000 ? 'l1' : ms < 30 * 60000 ? 'l2' : ms < 60 * 60000 ? 'l3' : 'l4';
+  const short = ms => { const m = Math.floor(ms / 60000); return m < 1 ? '' : m < 60 ? m + '분' : Math.floor(m / 60) + 'h' + (m % 60 ? pad2(m % 60) : ''); };
+  if (calView === 'day'){
+    a = b = t0; label = `${t0.getFullYear()}.${pad2(t0.getMonth() + 1)}.${pad2(t0.getDate())} (${DOW[t0.getDay()]})`;
+    const k = dkey(t0.getTime()), list = studyLog.map((x, i) => [x, i]).filter(([x]) => dkey(x.s) === k).sort((p, q) => p[0].s - q[0].s);
+    const hm = ms => { const d = new Date(ms); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); };
+    body = list.map(([x, i]) => `<button class="ent" data-i="${i}"><b>${hm(x.s)} ~ ${hm(x.e)}</b><span>${fmtDur(x.e - x.s)} ✏️</span></button>`).join('');
+    if (seg && k === today()){ const run = Date.now() - seg.s; body += `<div class="ent live"><b>지금 ${run > MIN_REC ? '기록 중' : '시작 (1분 넘으면 기록)'}</b><span>${fmtClock(run)}</span></div>`; }
+    if (!body) body = '<p class="cmsg">이 날은 기록이 없어요</p>';
+    body += `<button class="btn" id="cAdd" style="width:100%;margin-top:6px">＋ 공부 시간 직접 추가</button>`;
+  } else if (calView === 'week'){
+    a = new Date(t0); a.setDate(a.getDate() - a.getDay()); b = new Date(a); b.setDate(b.getDate() + 6);
+    label = `${a.getMonth() + 1}.${a.getDate()} ~ ${b.getMonth() + 1}.${b.getDate()}`;
+    let mx = 60 * 60000; const rows = [];
+    for (let i = 0; i < 7; i++){ const d = new Date(a); d.setDate(a.getDate() + i); const x = by[dkey(d.getTime())]; const ms = x ? x.ms : 0; mx = Math.max(mx, ms); rows.push([d, ms]); }
+    body = rows.map(([d, ms]) => `<button class="crow" data-k="${dkey(d.getTime())}"><span class="l">${d.getMonth() + 1}/${d.getDate()} (${DOW[d.getDay()]})</span><span class="bar2"><i style="width:${ms / mx * 100}%"></i></span><span class="t">${ms >= 1000 ? fmtDur(ms) : '-'}</span></button>`).join('');
+  } else if (calView === 'month'){
+    a = new Date(t0.getFullYear(), t0.getMonth(), 1); b = new Date(t0.getFullYear(), t0.getMonth() + 1, 0);
+    label = `${a.getFullYear()}년 ${a.getMonth() + 1}월`;
+    let h = DOW.map((x, i) => `<div class="dow ${i === 0 ? 'su' : ''}">${x}</div>`).join('');
+    for (let i = 0; i < a.getDay(); i++) h += '<div class="cc empty"></div>';
+    for (let d = 1; d <= b.getDate(); d++){
+      const k = a.getFullYear() + '-' + pad2(a.getMonth() + 1) + '-' + pad2(d), x = by[k], ms = x ? x.ms : 0;
+      h += `<button class="cc ${cellL(ms)} ${k === today() ? 'now' : ''}" data-k="${k}">${d}<small>${short(ms)}</small></button>`;
+    }
+    body = `<div class="cgrid">${h}</div>`;
+  } else {
+    a = new Date(t0.getFullYear(), 0, 1); b = new Date(t0.getFullYear(), 11, 31); label = `${a.getFullYear()}년`;
+    let h = '';
+    for (let m = 0; m < 12; m++){ const r = sumRange(by, new Date(a.getFullYear(), m, 1), new Date(a.getFullYear(), m + 1, 0)); h += `<button data-m="${m}"><b>${m + 1}월</b><small>${r.n ? `${r.n}일 · ${fmtDur(r.ms)}` : '-'}</small></button>`; }
+    body = `<div class="cmon">${h}</div>`;
+  }
+  const r = sumRange(by, a, b);
+  $('#cLabel').textContent = label;
+  $('#cSum').innerHTML = `<div class="stat"><b>${fmtDur(r.ms)}</b><span>공부한 시간</span></div><div class="stat"><b>${r.n}일</b><span>공부한 날</span></div>`;
+  const per = {day: '이 날', week: '이번 주', month: '이번 달', year: '올해'}[calView];
+  $('#cMsg').textContent = r.n ? (r.n >= 5 || calView === 'day' ? `${per} ${fmtDur(r.ms)} 공부했어요. 정말 잘하고 있어요! 🔥` : `${per} ${r.n}일 공부했어요. 이 기세 그대로! 💪`) : `${per}는 아직 기록이 없어요. 1분만 넘겨도 기록돼요 🌱`;
+  const box = $('#cBody'); box.innerHTML = body;
+  box.querySelectorAll('[data-k]').forEach(el => el.onclick = () => { calDate = keyToDate(el.dataset.k); calView = 'day'; renderCal(); });
+  box.querySelectorAll('[data-m]').forEach(el => el.onclick = () => { calDate = new Date(t0.getFullYear(), +el.dataset.m, 1); calView = 'month'; renderCal(); });
+  box.querySelectorAll('.ent[data-i]').forEach(el => el.onclick = () => editLog(+el.dataset.i));
+  const add = $('#cAdd'); if (add) add.onclick = () => editLog(-1);
+}
+$('#cTabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; calView = b.dataset.v; renderCal(); };
+function calShift(n){
+  const d = new Date(calDate);
+  if (calView === 'day') d.setDate(d.getDate() + n); else if (calView === 'week') d.setDate(d.getDate() + 7 * n);
+  else if (calView === 'month') d.setMonth(d.getMonth() + n, 1); else d.setFullYear(d.getFullYear() + n, 0, 1);
+  calDate = d; renderCal();
+}
+$('#cPrev').onclick = () => calShift(-1); $('#cNext').onclick = () => calShift(1);
+$('#cNow').onclick = () => { calDate = new Date(); renderCal(); };
+
+/* 기록 고치기 / 추가 / 지우기 */
+function editLog(i){
+  const pop = $('#logPop'), x = i >= 0 ? studyLog[i] : null;
+  const base = x ? x.s : (() => { const d = new Date(calDate); const n = new Date(); d.setHours(n.getHours(), n.getMinutes(), 0, 0); return d.getTime(); })();
+  const d0 = new Date(base);
+  $('#lpTitle').textContent = x ? '공부 기록 고치기' : '공부 시간 추가';
+  $('#lpDate').value = dkey(base); $('#lpTime').value = pad2(d0.getHours()) + ':' + pad2(d0.getMinutes());
+  $('#lpMin').value = x ? Math.max(1, Math.round((x.e - x.s) / 60000)) : 30;
+  $('#lpDel').style.display = x ? '' : 'none';
+  const close = () => pop.classList.remove('open');
+  $('#lpCancel').onclick = close;
+  pop.onclick = e => { if (e.target === pop) close(); };
+  $('#lpSave').onclick = () => {
+    const dv = $('#lpDate').value, tv = $('#lpTime').value, mv = Math.round(+$('#lpMin').value);
+    if (!dv || !tv || !(mv >= 1)){ toast('날짜, 시작 시각, 시간(분)을 확인해 주세요'); return; }
+    const [y, mo, dd] = dv.split('-').map(Number), [hh, mi] = tv.split(':').map(Number);
+    const s = new Date(y, mo - 1, dd, hh, mi).getTime(), e = s + Math.min(mv, 1440) * 60000;
+    if (x){ x.s = s; x.e = e; } else studyLog.push({s, e});
+    saveLog(); close(); calDate = new Date(s); renderCal(); toast('저장했어요');
+  };
+  $('#lpDel').onclick = async () => {
+    const v = await modal('이 기록을 지울까요?', `${fmtDur(x.e - x.s)} 공부 기록이 사라져요.`, [['지우기', 1, 'pri'], ['취소', null]]);
+    if (!v) return; studyLog.splice(i, 1); saveLog(); close(); renderCal(); toast('지웠어요');
+  };
+  pop.classList.add('open');
+}
+
 /* ---------- navigation ---------- */
 let curDay = null;
 function show(id){ stopSpeak(); closeRate(); if ($('#write').classList.contains('on')) closeWrite(); document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id)); window.scrollTo(0, 0); }
@@ -934,6 +1174,7 @@ function goHome(){ renderHome(); show('home'); }
 window.handleBack = function(){
   if ($('#modal').classList.contains('open')){ closeModal(); return true; }
   if ($('#typePop').classList.contains('open')){ $('#tCancel').click(); return true; }
+  if ($('#logPop').classList.contains('open')){ $('#lpCancel').click(); return true; }
   if ($('#editPop').classList.contains('open')){ closeEditPop(); return true; }
   if ($('#wedit').classList.contains('on')){ closeEdit(); return true; }
   if ($('#write').classList.contains('on')){ closeWrite(); return true; }
@@ -978,13 +1219,15 @@ function renderDays(){
   const box = $('#days'), days = dayList();
   if (layout === 'A'){
     box.className = 'dgrid';
-    box.innerHTML = days.map(d => {
+    const calTile = `<button class="dc calt" data-d="cal"><b>📅 캘린더</b><small>오늘 ${fmtDur(todayMs())}</small></button>`;
+    box.innerHTML = calTile + days.map(d => {
       const s = dayStat(d), pct = s.total ? s.done / s.total * 100 : 0;
       const cls = !s.total ? 'nowords' : (s.done === s.total ? 'complete' : '');
       return `<button class="dc ${cls}" data-d="${d}"><b>${dayLabel(d)}</b><small>${s.total ? `${s.done}/${s.total}` : '단어 없음'}</small>${s.total ? dotsHTML(d) : ''}
         <div class="mini"><i style="width:${pct}%"></i></div>${s.note ? `<span class="nb">${s.note}</span>` : ''}</button>`;
     }).join('');
     box.querySelectorAll('.dc').forEach(b => b.onclick = () => {
+      if (b.dataset.d === 'cal') return openCal();
       const d = +b.dataset.d; if (!dayWords(d).length){ toast(`${dayLabel(d)} 단어가 아직 없어요. 엑셀로 불러와 주세요`); return; }
       openDay(d);
     });
@@ -1019,9 +1262,9 @@ function renderDay(){
       <div class="stat"><b>${c + x ? Math.round(c / (c + x) * 100) + '%' : '-'}</b><span>정답률</span></div>
     </div>
     <div class="dbtns">
-      <button class="mbtn main" data-k="learn"><span class="k">問</span><span class="t"><b>학습하기</b><small>${resumeText('d' + d + 'learn') || `${s.total}개 단어 전부 풀기`}</small></span></button>
-      <button class="mbtn" data-k="card"><span class="k">🃏</span><span class="t"><b>카드 뒤집기</b><small>${flashResume('d' + d) || `${s.total}장 · 보고 떠올린 뒤 뒤집어 확인`}</small></span></button>
-      <button class="mbtn" data-k="rev"><span class="k">復</span><span class="t"><b>복습하기</b><small>${resumeText('d' + d + 'rev') || `푼 단어 ${s.done}개 · 틀린 단어가 더 자주 나와요`}</small></span></button>
+      <button class="mbtn main" data-k="learn"><span class="k">問</span><span class="t"><b>학습하기</b><small>${resumeText('d' + d + 'learn') || chunkSub(d, 'learn', `${s.total}개 · 25/50/75/100개씩 나눠 풀기`)}</small></span></button>
+      <button class="mbtn" data-k="card"><span class="k">🃏</span><span class="t"><b>카드 뒤집기</b><small>${flashResume('d' + d) || chunkSub(d, 'card', `${s.total}장 · 나눠서 보기`)}</small></span></button>
+      <button class="mbtn" data-k="rev"><span class="k">復</span><span class="t"><b>복습하기</b><small>${resumeText('d' + d + 'rev') || chunkSub(d, 'rev', `푼 단어 ${s.done}개 · 틀린 단어가 더 자주 나와요`)}</small></span></button>
       <button class="mbtn" data-k="note"><span class="k a">✕</span><span class="t"><b>오답노트</b><small>${resumeText('d' + d + 'note') || `${s.note}개 · 2번 연속 맞히면 빠져요`}</small></span></button>
       <button class="mbtn" data-k="mark"><span class="k a" style="background:var(--chip);color:var(--brown2)">✓</span><span class="t"><b>체크한 단어만 풀기</b><small id="mkSub"></small></span></button>
       <div class="mbtn rbtn"><span class="k">回</span><span class="t"><b>몇 번 회독 했나요?</b><small id="rSub"></small><span class="rpick" id="rPick"></span></span></div>
@@ -1140,9 +1383,9 @@ function drawRoundPick(d){
 }
 async function dayAction(d, k){
   const ws = dayWords(d), L = dayLabel(d);
-  if (k === 'learn') return begin('d' + d + 'learn', ws, `${L} 학습`, 'learn');
-  if (k === 'card') return dayFlash(d);
-  if (k === 'rev'){ const r = ws.filter(isStudied); if (!r.length) return toast(`${L} 학습하기를 먼저 해주세요`); return begin('d' + d + 'rev', weighted(r), `${L} 복습`, 'review', true); }
+  if (k === 'learn') return chunkRun(d, 'learn');
+  if (k === 'card') return chunkRun(d, 'card');
+  if (k === 'rev'){ if (!ws.some(isStudied)) return toast(`${L} 학습하기를 먼저 해주세요`); return chunkRun(d, 'rev'); }
   if (k === 'mark'){ const m = markedIn(d); if (!m.length) return toast('아래 단어를 눌러 체크한 뒤 풀 수 있어요'); {
       const key = 'd' + d + 'mark';
       if (sessions[key] && !validMarkSession(d)){ delete sessions[key]; saveSessions(); }   // 체크가 바뀌었으면 옛 세션은 버리고 새로 시작
@@ -1151,6 +1394,76 @@ async function dayAction(d, k){
       return;
     } }
   if (k === 'note'){ const n = ws.filter(isNote); if (!n.length) return toast(`${L} 오답노트가 비어 있어요`); return begin('d' + d + 'note', n, `${L} 오답노트`, 'note'); }
+}
+
+
+/* ---------- 나눠 풀기: 하루 단어를 25/50/75/100개씩. 순서를 고정해 두고 이어서 가므로 겹치지 않음 ---------- */
+let chunks = {};   // {키: {order:[id…], pos}}  키: d+일차+learn|card|rev
+const saveChunks = () => put('jv2_chunks', chunks);
+function chunkState(key, ids, fresh){
+  let C = chunks[key];
+  const set = new Set(ids);
+  if (!C || fresh){ C = chunks[key] = {order: key.endsWith('rev') ? weighted(ids.map(id => byId.get(id))).map(w => w.id) : shuffle(ids.slice()), pos: 0}; }
+  else {   // 단어가 바뀌었으면(불러오기·새로 푼 단어) 순서는 유지하고 빠진 건 지우고 새것은 뒤에 붙임
+    const old = C.order.filter(id => set.has(id)), have = new Set(old), add = ids.filter(id => !have.has(id));
+    C.pos = Math.min(C.pos, old.length); C.order = old.concat(add);
+  }
+  return C;
+}
+function chunkSub(d, mode, dflt){
+  const C = chunks['d' + d + mode]; if (!C || !C.order.length) return dflt;
+  const n = C.order.length; return C.pos >= n ? `${n}개 모두 끝! 다시 하면 새 라운드` : `${C.pos}/${n}개 진행 · 다음은 ${C.pos + 1}번째부터`;
+}
+async function pickChunk(key, ids, title){
+  let C = chunkState(key, ids, false), n = C.order.length;
+  if (C.pos >= n){
+    const v = await modal(`${title} 모두 끝냈어요 🎉`, `${n}개를 전부 한 번씩 봤어요.<br>새 라운드로 처음부터 다시 할까요?`, [['새 라운드 시작', 'new', 'pri'], ['취소', null]]);
+    if (v !== 'new') return null;
+    C = chunkState(key, ids, true); saveChunks();
+  }
+  const r = n - C.pos, set = new Set();
+  [1, 2, 3, 4].forEach(q => { const c = Math.ceil(n * q / 4); if (c <= r) set.add(c); });
+  set.add(r);
+  const opts = [...set].sort((a, b) => a - b);
+  const v = await modal(title, `${C.pos ? `지금까지 <b>${C.pos}</b> / ${n}개 했어요. 이어서 ` : `${n}개 중 `}몇 개를 할까요?<br><small>이미 한 단어는 겹치지 않아요</small>`,
+    [...opts.map(c => [c === r && C.pos ? `남은 ${c}개 전부` : `${c}개`, c, c === opts[0] ? 'pri' : '']), ['취소', null]]);
+  if (!v) return null;
+  const from = C.pos, k = v;
+  const slice = C.order.slice(from, from + k);
+  return {ids: slice, ws: slice.map(id => byId.get(id)).filter(Boolean), from: from + 1, to: from + slice.length, commit(){ C.pos = from + slice.length; saveChunks(); }};
+}
+async function chunkRun(d, mode){
+  const L = dayLabel(d), all = dayWords(d), key = 'd' + d + mode;
+  const pool = mode === 'rev' ? all.filter(isStudied) : all;
+  if (!pool.length) return toast('단어가 없어요');
+  const name = {learn: '학습', card: '카드', rev: '복습'}[mode], ids = pool.map(w => w.id);
+  // 하던 게 있으면 먼저 이어서 할지 물음
+  if (mode === 'card'){
+    const sv = flashSaves['d' + d];
+    if (sv){
+      const v = await askResumeFlash('d' + d);
+      if (v === 'go') return resumeFlash('d' + d);
+      if (v !== 'new') return;
+    }
+  } else if (sessions[key]){
+    const S = sessions[key];
+    const v = await modal('이어서 풀까요?', `${esc(S.label)} · ${S.idx} / ${S.ids.length}까지 풀었어요`, [['이어서 풀기', 'go', 'pri'], ['다음 묶음 새로 풀기', 'new'], ['취소', null]]);
+    if (v === 'go'){
+      if (!S.preset){ const t = await askTypes(S.types || ['rand']); if (!t) return; S.types = t.includes('rand') ? null : t; saveSessions(); }
+      return runSession(key);
+    }
+    if (v !== 'new') return;
+  }
+  const p = await pickChunk(key, ids, `${L} ${name}`);
+  if (!p || !p.ws.length) return;
+  const label = `${L} ${name} (${p.from}~${p.to}번째)`;
+  if (mode === 'card'){
+    startFlash(p.ws, label, 'd' + d);
+    if (F.key === 'd' + d) p.commit();
+    return;
+  }
+  await begin(key, p.ws, label, mode === 'rev' ? 'review' : 'learn', true, true);
+  if (sessions[key] && sessions[key].ids.join() === p.ids.join()) p.commit();
 }
 
 /* ---------- today ---------- */
@@ -1779,8 +2092,8 @@ $('#items').addEventListener('click', e => {
   });
 });
 function resetStats(){
-  modal('학습 기록 초기화', '진도, 정답/오답 기록, 오답노트, 회독 체크, 체크한 단어, 진행 중인 학습이 모두 지워집니다. 단어는 그대로 남습니다.', [['초기화', 1, 'red'], ['취소', null]])
-    .then(v => { if (v){ stats = {}; sessions = {}; rounds = {}; marks = {}; saveStats(); saveSessions(); saveRounds(); saveMarks(); renderList(); toast('학습 기록을 초기화했습니다'); } });
+  modal('학습 기록 초기화', '진도, 정답/오답 기록, 오답노트, 회독 체크, 체크한 단어, 진행 중인 학습이 모두 지워집니다. 단어와 공부 시간 기록(캘린더)은 그대로 남습니다.', [['초기화', 1, 'red'], ['취소', null]])
+    .then(v => { if (v){ stats = {}; sessions = {}; rounds = {}; marks = {}; chunks = {}; saveStats(); saveSessions(); saveRounds(); saveMarks(); saveChunks(); renderList(); toast('학습 기록을 초기화했습니다'); } });
 }
 function deleteAll(){
   modal('단어 전체 삭제', '모든 단어와 학습 기록이 지워집니다. 되돌릴 수 없습니다.', [['전체 삭제', 1, 'red'], ['취소', null]])
@@ -1896,7 +2209,7 @@ function exportExcel(){
 
 /* ---------- backup ---------- */
 function exportBackup(){
-  const data = {app:'jpvocab', v:2, date:new Date().toISOString(), words, stats, sessions, range, rounds, edits, marks};
+  const data = {app:'jpvocab', v:2, date:new Date().toISOString(), words, stats, sessions, range, rounds, edits, marks, chunks, log: studyLog};
   const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = `단어장_백업_${today()}.json`;
@@ -1913,8 +2226,8 @@ $('#bfile').addEventListener('change', e => {
     if (!d || d.app !== 'jpvocab' || !Array.isArray(d.words) || d.v !== 2){ modal('백업 파일이 아닙니다', '이 버전의 단어장에서 저장한 .json 백업 파일을 선택해 주세요.', [['확인', 1, 'pri']]); return; }
     const v = await modal('백업에서 복원할까요?', `단어 ${num(d.words.length)}개와 학습 기록을 불러옵니다.<br>지금 기기에 있는 내용은 백업 내용으로 바뀝니다.`, [['복원하기', 1, 'pri'], ['취소', null]]);
     if (!v) return;
-    words = d.words; stats = d.stats || {}; sessions = d.sessions || {}; rounds = d.rounds || {}; marks = d.marks || {}; edits = d.edits || {}; range = d.range || null; put('jv2_range', range);
-    saveWords(); saveStats(); saveSessions(); saveRounds(); saveEdits(); renderList(); renderHome();
+    words = d.words; stats = d.stats || {}; sessions = d.sessions || {}; rounds = d.rounds || {}; marks = d.marks || {}; edits = d.edits || {}; chunks = d.chunks || {}; studyLog = Array.isArray(d.log) ? d.log : []; range = d.range || null; put('jv2_range', range);
+    saveWords(); saveStats(); saveSessions(); saveRounds(); saveEdits(); saveChunks(); saveLog(); renderList(); renderHome();
     toast('백업에서 복원했습니다');
   };
   rd.readAsText(f);
@@ -2142,6 +2455,7 @@ let wRT; window.addEventListener('resize', () => { cancelAnimationFrame(wRT); wR
 ['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => { if (!window.visualViewport || visualViewport.scale <= 1.01) e.preventDefault(); }, {passive: false}));
 document.addEventListener('dblclick', e => e.preventDefault(), {passive: false});
 load(); renderRate(); renderHome();
+segRecover(); segStart(); tickTimer();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !/claude\.ai|claudeusercontent/.test(location.host)) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
