@@ -1436,14 +1436,21 @@ function chunkSub(d, mode, dflt){
   const C = chunks['d' + d + mode]; if (!C || !C.order.length) return dflt;
   const n = C.order.length; return C.pos >= n ? `${n}개 모두 끝! 다시 하면 새 라운드` : `${C.pos}/${n}개 진행 · 다음은 ${C.pos + 1}번째부터`;
 }
-async function pickChunk(key, ids, title){
-  let C = chunkState(key, ids, false), n = C.order.length;
+/* 시작만 하고 풀지 않은 단어는 '한 것'으로 세지 않음: 작업용 복사본에서 안 푼 단어를 앞으로 되돌려 놓고, 실제로 시작할 때만 저장 */
+async function pickChunk(key, ids, title, unans){
+  const base = chunkState(key, ids, false);
+  let C = {order: base.order.slice(), pos: base.pos, mode: base.mode}, n = C.order.length;
+  if (unans && unans.length){
+    const head = C.order.slice(0, C.pos), back = unans.filter(id => head.includes(id)), bs = new Set(back);
+    if (chunkMode === 'num') back.sort(byNo);
+    if (back.length){ C.order = head.filter(id => !bs.has(id)).concat(back, C.order.slice(C.pos)); C.pos -= back.length; }
+  }
   if (C.pos >= n){
     const v = await modal(`${title} 모두 끝냈어요 🎉`, `${n}개를 전부 한 번씩 봤어요.<br>새 라운드로 처음부터 다시 할까요?`, [['새 라운드 시작', 'new', 'pri'], ['취소', null]]);
     if (v !== 'new') return null;
-    C = chunkState(key, ids, true); saveChunks(); n = C.order.length;
+    const f = chunkState(key, ids, true); saveChunks(); C = {order: f.order.slice(), pos: 0, mode: f.mode}; n = C.order.length;
   }
-  if ((C.mode || 'mix') !== chunkMode){ chunkSwitch(C, key, chunkMode); saveChunks(); }
+  if ((C.mode || 'mix') !== chunkMode) chunkSwitch(C, key, chunkMode);
   for (;;){
     const r = n - C.pos, set = new Set();
     [1, 2, 3, 4].forEach(q => { const c = Math.ceil(n * q / 4); if (c <= r) set.add(c); });
@@ -1455,9 +1462,9 @@ async function pickChunk(key, ids, title){
       [...opts.map(c => [c === r && C.pos ? `남은 ${c}개 전부` : `${c}개`, c, c === opts[0] ? 'pri' : '']),
        [num ? '🔀 섞은 순서로 바꾸기' : '🔢 번호순으로 바꾸기', 'swap'], ['취소', null]]);
     if (!v) return null;
-    if (v === 'swap'){ chunkMode = num ? 'mix' : 'num'; put('jv2_chunkmode', chunkMode); chunkSwitch(C, key, chunkMode); saveChunks(); continue; }
+    if (v === 'swap'){ chunkMode = num ? 'mix' : 'num'; put('jv2_chunkmode', chunkMode); chunkSwitch(C, key, chunkMode); continue; }
     const from = C.pos, slice = C.order.slice(from, from + v);
-    return {ids: slice, ws: slice.map(id => byId.get(id)).filter(Boolean), from: from + 1, to: from + slice.length, commit(){ C.pos = from + slice.length; saveChunks(); }};
+    return {ids: slice, ws: slice.map(id => byId.get(id)).filter(Boolean), from: from + 1, to: from + slice.length, commit(){ chunks[key] = {order: C.order, pos: from + slice.length, mode: C.mode}; saveChunks(); }};
   }
 }
 async function chunkRun(d, mode){
@@ -1482,7 +1489,9 @@ async function chunkRun(d, mode){
     }
     if (v !== 'new') return;
   }
-  const p = await pickChunk(key, ids, `${L} ${name}`);
+  const old = mode === 'card' ? flashSaves['d' + d] : sessions[key];
+  const unans = old ? old.ids.slice(old.idx || 0) : [];   // 이전에 시작했지만 아직 안 푼(안 본) 단어
+  const p = await pickChunk(key, ids, `${L} ${name}`, unans);
   if (!p || !p.ws.length) return;
   const label = `${L} ${name} (${p.from}~${p.to}번째)`;
   if (mode === 'card'){
