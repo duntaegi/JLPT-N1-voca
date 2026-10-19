@@ -1031,16 +1031,25 @@ function segRecover(){   // 앱이 강제 종료됐다면 마지막으로 저장
   if (old && old.s && old.hb && old.hb - old.s > MIN_REC && !studyLog.some(x => x.s === old.s)){ studyLog.push({s: old.s, e: old.hb}); saveLog(); }
   try { localStorage.removeItem('jv2_seg'); } catch(err){}
 }
+/* 00시를 넘긴 기록은 날짜별로 나눠서 셈: 23:55~00:15 → 전날 5분, 다음 날 15분 */
+function eachDay(s, e, cb){
+  const d = new Date(s); d.setHours(0, 0, 0, 0);
+  while (d.getTime() < e){
+    const a = d.getTime(); d.setDate(d.getDate() + 1);
+    const from = Math.max(s, a), to = Math.min(e, d.getTime());
+    if (to > from) cb(dkey(a), from, to);
+  }
+}
 function logByDate(){
-  const m = {};
-  studyLog.forEach(x => { const k = dkey(x.s); (m[k] = m[k] || {ms: 0, n: 0}); m[k].ms += Math.max(0, x.e - x.s); m[k].n++; });
-  if (seg && Date.now() - seg.s > MIN_REC){ const k = dkey(seg.s); (m[k] = m[k] || {ms: 0, n: 0}); m[k].ms += Date.now() - seg.s; }
+  const m = {}, add = (k, ms) => { (m[k] = m[k] || {ms: 0}); m[k].ms += ms; };
+  studyLog.forEach(x => eachDay(x.s, x.e, (k, a, b) => add(k, b - a)));
+  if (seg && Date.now() - seg.s > MIN_REC) eachDay(seg.s, Date.now(), (k, a, b) => add(k, b - a));
   return m;
 }
 function todayMs(){
   const k = today(); let t = 0;
-  studyLog.forEach(x => { if (dkey(x.s) === k) t += Math.max(0, x.e - x.s); });
-  if (seg) t += Date.now() - seg.s;
+  studyLog.forEach(x => eachDay(x.s, x.e, (kk, a, b) => { if (kk === k) t += b - a; }));
+  if (seg) eachDay(seg.s, Date.now(), (kk, a, b) => { if (kk === k) t += b - a; });
   return t;
 }
 function tickTimer(){
@@ -1091,9 +1100,11 @@ function renderCal(){
   const short = ms => { const m = Math.floor(ms / 60000); return m < 1 ? '' : m < 60 ? m + '분' : Math.floor(m / 60) + 'h' + (m % 60 ? pad2(m % 60) : ''); };
   if (calView === 'day'){
     a = b = t0; label = `${t0.getFullYear()}.${pad2(t0.getMonth() + 1)}.${pad2(t0.getDate())} (${DOW[t0.getDay()]})`;
-    const k = dkey(t0.getTime()), list = studyLog.map((x, i) => [x, i]).filter(([x]) => dkey(x.s) === k).sort((p, q) => p[0].s - q[0].s);
+    const k = dkey(t0.getTime()), list = [];
+    studyLog.forEach((x, i) => eachDay(x.s, x.e, (kk, a, b) => { if (kk === k) list.push([{s: a, e: b, full: x}, i]); }));
+    list.sort((p, q) => p[0].s - q[0].s);
     const hm = ms => { const d = new Date(ms); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); };
-    body = list.map(([x, i]) => `<button class="ent" data-i="${i}"><b>${hm(x.s)} ~ ${hm(x.e)}</b><span>${fmtDur(x.e - x.s)} ✏️</span></button>`).join('');
+    body = list.map(([x, i]) => `<button class="ent" data-i="${i}"><b>${hm(x.s)} ~ ${x.e >= t0.getTime() + 86400000 - 1000 ? '24:00' : hm(x.e)}${x.full.s < x.s || x.full.e > x.e ? ' <small>(자정을 넘긴 기록)</small>' : ''}</b><span>${fmtDur(x.e - x.s)} ✏️</span></button>`).join('');
     if (seg && k === today()){ const run = Date.now() - seg.s; body += `<div class="ent live"><b>지금 ${run > MIN_REC ? '기록 중' : '시작 (1분 넘으면 기록)'}</b><span>${fmtClock(run)}</span></div>`; }
     if (!body) body = '<p class="cmsg">이 날은 기록이 없어요</p>';
     body += `<button class="btn" id="cAdd" style="width:100%;margin-top:6px">＋ 공부 시간 직접 추가</button>`;
