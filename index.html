@@ -1400,15 +1400,26 @@ async function dayAction(d, k){
 /* ---------- 나눠 풀기: 하루 단어를 25/50/75/100개씩. 순서를 고정해 두고 이어서 가므로 겹치지 않음 ---------- */
 let chunks = {};   // {키: {order:[id…], pos}}  키: d+일차+learn|card|rev
 const saveChunks = () => put('jv2_chunks', chunks);
+let chunkMode = get('jv2_chunkmode', 'num'); if (chunkMode !== 'num' && chunkMode !== 'mix') chunkMode = 'num';   // num: 번호순으로 자름, mix: 섞은 순서로 자름
+const byNo = (x, y) => ((byId.get(x) || {}).no || 0) - ((byId.get(y) || {}).no || 0);
+function orderBy(key, ids, mode){
+  if (mode === 'num') return ids.slice().sort(byNo);
+  return key.endsWith('rev') ? weighted(ids.map(id => byId.get(id))).map(w => w.id) : shuffle(ids.slice());
+}
 function chunkState(key, ids, fresh){
   let C = chunks[key];
   const set = new Set(ids);
-  if (!C || fresh){ C = chunks[key] = {order: key.endsWith('rev') ? weighted(ids.map(id => byId.get(id))).map(w => w.id) : shuffle(ids.slice()), pos: 0}; }
-  else {   // 단어가 바뀌었으면(불러오기·새로 푼 단어) 순서는 유지하고 빠진 건 지우고 새것은 뒤에 붙임
-    const old = C.order.filter(id => set.has(id)), have = new Set(old), add = ids.filter(id => !have.has(id));
-    C.pos = Math.min(C.pos, old.length); C.order = old.concat(add);
+  if (!C || fresh){ C = chunks[key] = {order: orderBy(key, ids, chunkMode), pos: 0, mode: chunkMode}; }
+  else {   // 단어가 바뀌었으면(불러오기·새로 푼 단어) 한 건 그대로 두고 빠진 건 지우고 새것은 남은 쪽에 합침
+    const done = C.order.slice(0, C.pos).filter(id => set.has(id)), have = new Set(done);
+    const rest = ids.filter(id => !have.has(id));
+    C.pos = done.length; C.order = done.concat(orderBy(key, rest, C.mode || 'mix'));
   }
   return C;
+}
+function chunkSwitch(C, key, mode){   // 이미 한 단어(앞쪽)는 그대로 두고, 남은 단어만 새 순서로 다시 정렬 → 겹치지 않음
+  const done = C.order.slice(0, C.pos), rest = C.order.slice(C.pos);
+  C.order = done.concat(orderBy(key, rest, mode)); C.mode = mode;
 }
 function chunkSub(d, mode, dflt){
   const C = chunks['d' + d + mode]; if (!C || !C.order.length) return dflt;
@@ -1419,18 +1430,24 @@ async function pickChunk(key, ids, title){
   if (C.pos >= n){
     const v = await modal(`${title} 모두 끝냈어요 🎉`, `${n}개를 전부 한 번씩 봤어요.<br>새 라운드로 처음부터 다시 할까요?`, [['새 라운드 시작', 'new', 'pri'], ['취소', null]]);
     if (v !== 'new') return null;
-    C = chunkState(key, ids, true); saveChunks();
+    C = chunkState(key, ids, true); saveChunks(); n = C.order.length;
   }
-  const r = n - C.pos, set = new Set();
-  [1, 2, 3, 4].forEach(q => { const c = Math.ceil(n * q / 4); if (c <= r) set.add(c); });
-  set.add(r);
-  const opts = [...set].sort((a, b) => a - b);
-  const v = await modal(title, `${C.pos ? `지금까지 <b>${C.pos}</b> / ${n}개 했어요. 이어서 ` : `${n}개 중 `}몇 개를 할까요?<br><small>이미 한 단어는 겹치지 않아요</small>`,
-    [...opts.map(c => [c === r && C.pos ? `남은 ${c}개 전부` : `${c}개`, c, c === opts[0] ? 'pri' : '']), ['취소', null]]);
-  if (!v) return null;
-  const from = C.pos, k = v;
-  const slice = C.order.slice(from, from + k);
-  return {ids: slice, ws: slice.map(id => byId.get(id)).filter(Boolean), from: from + 1, to: from + slice.length, commit(){ C.pos = from + slice.length; saveChunks(); }};
+  if ((C.mode || 'mix') !== chunkMode){ chunkSwitch(C, key, chunkMode); saveChunks(); }
+  for (;;){
+    const r = n - C.pos, set = new Set();
+    [1, 2, 3, 4].forEach(q => { const c = Math.ceil(n * q / 4); if (c <= r) set.add(c); });
+    set.add(r);
+    const opts = [...set].sort((a, b) => a - b);
+    const nx = byId.get(C.order[C.pos]), num = chunkMode === 'num';
+    const info = num ? `<b>번호순</b> · 다음은 ${nx && nx.no ? nx.no + '번 단어' : C.pos + 1 + '번째'}부터 (문제는 섞여서 나와요)` : `<b>섞은 순서</b> · 한 번 섞어 정한 순서대로 이어서`;
+    const v = await modal(title, `${C.pos ? `지금까지 <b>${C.pos}</b> / ${n}개 했어요. ` : `${n}개 중 `}몇 개를 할까요?<br><small>${info}<br>이미 한 단어는 겹치지 않아요</small>`,
+      [...opts.map(c => [c === r && C.pos ? `남은 ${c}개 전부` : `${c}개`, c, c === opts[0] ? 'pri' : '']),
+       [num ? '🔀 섞은 순서로 바꾸기' : '🔢 번호순으로 바꾸기', 'swap'], ['취소', null]]);
+    if (!v) return null;
+    if (v === 'swap'){ chunkMode = num ? 'mix' : 'num'; put('jv2_chunkmode', chunkMode); chunkSwitch(C, key, chunkMode); saveChunks(); continue; }
+    const from = C.pos, slice = C.order.slice(from, from + v);
+    return {ids: slice, ws: slice.map(id => byId.get(id)).filter(Boolean), from: from + 1, to: from + slice.length, commit(){ C.pos = from + slice.length; saveChunks(); }};
+  }
 }
 async function chunkRun(d, mode){
   const L = dayLabel(d), all = dayWords(d), key = 'd' + d + mode;
@@ -1462,8 +1479,8 @@ async function chunkRun(d, mode){
     if (F.key === 'd' + d) p.commit();
     return;
   }
-  await begin(key, p.ws, label, mode === 'rev' ? 'review' : 'learn', true, true);
-  if (sessions[key] && sessions[key].ids.join() === p.ids.join()) p.commit();
+  await begin(key, p.ws, label, mode === 'rev' ? 'review' : 'learn', false, true);   // 묶음 안에서는 문제 순서를 섞음
+  if (sessions[key] && sessions[key].label === label && sessions[key].ids.slice().sort().join() === p.ids.slice().sort().join()) p.commit();
 }
 
 /* ---------- today ---------- */
