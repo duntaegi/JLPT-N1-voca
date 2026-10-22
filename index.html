@@ -628,6 +628,7 @@ html.wlock,html.wlock body{overflow:hidden}
     <div class="csum" id="cSum"></div>
     <p class="cmsg" id="cMsg"></p>
     <div id="cBody"></div>
+    <button class="btn" id="cReset" style="width:100%;margin:26px 0 10px;color:var(--ng)">공부 시간 기록 전체 지우기</button>
   </div>
 </section>
 
@@ -1186,6 +1187,14 @@ function calShift(n){
   calDate = d; renderCal();
 }
 $('#cPrev').onclick = () => calShift(-1); $('#cNext').onclick = () => calShift(1);
+$('#cReset').onclick = async () => {
+  const n = studyLog.length;
+  const v = await modal('공부 시간 기록을 모두 지울까요?', `캘린더의 공부한 시간과 공부한 날 기록 <b>${n}개</b>가 모두 사라져요.<br>지운 뒤에는 되돌릴 수 없어요. 단어 학습 기록과 복습 일정은 그대로 남아요.`, [['모두 지우기', 'go', 'pri'], ['취소', null]]);
+  if (v !== 'go') return;
+  studyLog = []; saveLog();
+  if (seg){ seg = {s: Date.now()}; put('jv2_seg', {s: seg.s, hb: seg.s}); }   // 지금 켜 둔 시간도 0부터 다시 셈
+  calDate = new Date(); renderCal(); tickTimer(); toast('공부 시간 기록을 지웠어요. 새로 시작해요!');
+};
 $('#cNow').onclick = () => { calDate = new Date(); renderCal(); };
 
 /* 기록 고치기 / 추가 / 지우기 */
@@ -1591,7 +1600,7 @@ async function pickChunk(key, ids, title, unans, fresh){
     set.add(r);
     const opts = [...set].sort((a, b) => a - b);
     const nx = byId.get(C.order[C.pos]), num = chunkMode === 'num';
-    const info = num ? `<b>번호순</b> · 다음은 ${nx && nx.no ? nx.no + '번 단어' : C.pos + 1 + '번째'}부터 (문제는 섞여서 나와요)` : `<b>섞은 순서</b> · 한 번 섞어 정한 순서대로 이어서`;
+    const info = num ? `<b>🔢 번호순</b> · 다음은 ${nx && nx.no ? nx.no + '번 단어' : C.pos + 1 + '번째'}부터 (문제는 섞여서 나와요)` : `<b>🔀 섞은 순서</b> · 번호와 상관없이 섞어 둔 순서대로 이어서`;
     const v = await modal(title, `${C.pos ? `지금까지 <b>${C.pos}</b> / ${n}개 했어요. ` : `${n}개 중 `}몇 개를 할까요?<br><small>${info}<br>이미 한 단어는 겹치지 않아요</small>`,
       [...opts.map(c => [c === r && C.pos ? `남은 ${c}개 전부` : `${c}개`, c, c === opts[0] ? 'pri' : '']),
        [num ? '🔀 섞은 순서로 바꾸기' : '🔢 번호순으로 바꾸기', 'swap'], ...(C.pos ? [['↺ 처음부터 다시', 'reset']] : []), ['취소', null]]);
@@ -1629,7 +1638,8 @@ async function chunkRun(d, mode){
   const unans = old ? old.ids.slice(old.idx || 0) : [];   // 이전에 시작했지만 아직 안 푼(안 본) 단어
   const p = await pickChunk(key, ids, `${L} ${name}`, unans, fresh);
   if (!p || !p.ws.length) return;
-  const label = `${L} ${name} (${p.from}~${p.to}번째)`;
+  const nos = p.ws.map(w => w.no || 0).filter(Boolean), mn = Math.min(...nos), mx = Math.max(...nos);
+  const label = chunkMode === 'num' && nos.length ? `${L} ${name} (🔢 ${mn}~${mx}번 단어)` : `${L} ${name} (🔀 섞은 순서 ${p.from}~${p.to}번째)`;
   if (mode === 'card'){
     startFlash(p.ws, label, 'd' + d);
     if (F.key === 'd' + d) p.commit();
