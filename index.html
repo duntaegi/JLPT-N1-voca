@@ -555,6 +555,20 @@ html.wlock,html.wlock body{overflow:hidden}
 .ci small{display:block;font-size:11px;color:var(--sub);margin-top:1px}
 .ci .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-bottom:3px}
 .cdue{margin-top:10px;padding:8px 12px;border-radius:10px;background:var(--chip);color:var(--brown2);font-size:13px;font-weight:700;text-align:center}
+/* ---- 복습 날짜 보기 ---- */
+.crow:disabled{opacity:.55}
+.hint{font-size:12px;color:var(--sub);font-weight:600}
+.tag.r{background:var(--chip);color:var(--brown2);margin-left:6px}
+.tag.r.now{background:var(--cta);color:var(--oncta)}
+.dpsheet{max-height:86vh;display:flex;flex-direction:column}
+.dpsheet .mm{margin-bottom:8px}
+.dpbody{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;min-height:120px;margin:0 -4px 12px;padding:0 4px}
+.dpg{margin-bottom:10px}
+.dpg>b{display:block;position:sticky;top:0;background:var(--paper);padding:8px 2px 6px;font-size:14px;color:var(--brown2);border-bottom:1px solid var(--line)}
+.dpw{display:flex;gap:8px;padding:8px 2px;border-bottom:1px dashed var(--line);font-size:15px;align-items:baseline}
+.dpw .a{font-weight:700;min-width:28%}
+.dpw .b{color:var(--brown2);min-width:28%}
+.dpw .c{flex:1;min-width:0}
 </style>
 </head>
 <body>
@@ -640,9 +654,17 @@ html.wlock,html.wlock body{overflow:hidden}
     <div class="csum" id="srsSum" style="margin-top:14px"></div>
     <div class="sech"><b>지금 복습할 일차</b></div><div id="srsDays"></div>
     <button class="btn" id="srsSpread" style="width:100%;margin:6px 0 4px">밀린 복습 나눠서 하기</button>
-    <div class="sech"><b>앞으로 14일</b></div><div id="srsWeek"></div>
+    <div class="sech"><b id="srsWeekT">앞으로 14일</b><span class="hint">날짜를 누르면 단어를 볼 수 있어요</span></div><div id="srsWeek"></div>
+    <button class="btn" id="srsMore" style="width:100%;margin:6px 0 4px">30일까지 보기</button>
   </div>
 </section>
+
+<div class="modal" id="duePop"><div class="sheet dpsheet">
+  <h3 id="dpTitle"></h3>
+  <div class="mm" id="dpSub"></div>
+  <div id="dpBody" class="dpbody"></div>
+  <div class="mb"><button class="btn pri" id="dpClose">닫기</button></div>
+</div></div>
 
 <!-- 캘린더 -->
 <section class="screen" id="cal">
@@ -1329,13 +1351,16 @@ function renderSrs(){
     const d = +b.dataset.d; startDue(list.filter(w => w.day === d), `${dayLabel(d)} 복습`, 'quiz');
   });
   const cnt = {}; for (const w of words){ const s = stats[w.id]; if (s && s.due && s.due > t) cnt[s.due] = (cnt[s.due] || 0) + 1; }
+  const span = srsSpan, hr = document.getElementById('srsWeekT'); if (hr) hr.textContent = `앞으로 ${span}일`;
   let mx = Math.max(list.length, 1), rows = '';
-  for (let i = 0; i < 14; i++){ const k = addDays(t, i), c = i === 0 ? list.length : (cnt[k] || 0); mx = Math.max(mx, c); }
-  for (let i = 0; i < 14; i++){
+  for (let i = 0; i < span; i++){ const k = addDays(t, i), c = i === 0 ? list.length : (cnt[k] || 0); mx = Math.max(mx, c); }
+  for (let i = 0; i < span; i++){
     const k = addDays(t, i), c = i === 0 ? list.length : (cnt[k] || 0), d = keyToDate(k);
-    rows += `<div class="crow"><span class="l">${i === 0 ? '오늘' : (d.getMonth() + 1) + '/' + d.getDate() + ' (' + DOW[d.getDay()] + ')'}</span><span class="bar2"><i style="width:${c / mx * 100}%"></i></span><span class="t">${c ? c + '개' : '-'}</span></div>`;
+    rows += `<button class="crow" data-due="${k}" ${c ? '' : 'disabled'}><span class="l">${i === 0 ? '오늘' : (d.getMonth() + 1) + '/' + d.getDate() + ' (' + DOW[d.getDay()] + ')'}</span><span class="bar2"><i style="width:${c / mx * 100}%"></i></span><span class="t">${c ? c + '개 ›' : '-'}</span></button>`;
   }
   $('#srsWeek').innerHTML = rows;
+  $('#srsWeek').querySelectorAll('[data-due]').forEach(b => b.onclick = () => showDue(b.dataset.due));
+  $('#srsMore').textContent = span === 14 ? '30일까지 보기' : '14일만 보기';
   $('#srsSpread').style.display = over > 0 ? '' : 'none';
 }
 $('#srsIntSave').onclick = () => {
@@ -1350,6 +1375,23 @@ $('#srsSpread').onclick = async () => {
   const t = today(); list.forEach((w, i) => { stats[w.id].due = addDays(t, Math.floor(i / cap)); });
   saveStats(); renderSrs(); toast('복습 일정을 나눴어요');
 };
+let srsSpan = 14;
+$('#srsMore').onclick = () => { srsSpan = srsSpan === 14 ? 30 : 14; renderSrs(); };
+function dueOn(k){   // 그 날짜에 복습할 단어 (오늘은 밀린 단어 포함)
+  const t = today(); return words.filter(w => { const s = stats[w.id]; return s && s.due && (k === t ? s.due <= t : s.due === k); })
+    .sort((a, b) => a.day - b.day || (a.no || 0) - (b.no || 0));
+}
+function showDue(k){
+  const list = dueOn(k), d = keyToDate(k), t = today();
+  const title = k === t ? '오늘 복습할 단어' : `${d.getMonth() + 1}/${d.getDate()} (${DOW[d.getDay()]}) 복습할 단어`;
+  const byD = new Map(); list.forEach(w => { if (!byD.has(w.day)) byD.set(w.day, []); byD.get(w.day).push(w); });
+  $('#dpTitle').textContent = title;
+  $('#dpSub').textContent = `${list.length}개 · ${[...byD.keys()].map(x => `${dayLabel(x)} ${byD.get(x).length}`).join(' · ')}`;
+  $('#dpBody').innerHTML = [...byD.entries()].map(([day, ws]) => `<div class="dpg"><b>${dayLabel(day)} · ${ws.length}개</b>${ws.map(w => `<div class="dpw"><span class="a">${esc(w.kanji || w.kana)}</span><span class="b">${esc(readingText(w))}</span><span class="c">${esc(w.meaning)}</span></div>`).join('')}</div>`).join('') || '<p class="cmsg">복습할 단어가 없어요</p>';
+  $('#duePop').classList.add('open'); $('#dpBody').scrollTop = 0;
+}
+$('#dpClose').onclick = () => $('#duePop').classList.remove('open');
+$('#duePop').onclick = e => { if (e.target === $('#duePop')) $('#duePop').classList.remove('open'); };
 $('#srsQuiz').onclick = () => startDue(dueList(), '망각곡선 복습', 'quiz');
 $('#srsCardBtn').onclick = () => startDue(dueList(), '망각곡선 복습', 'card');
 
@@ -1403,6 +1445,7 @@ function goHome(){ renderHome(); show('home'); }
 window.handleBack = function(){
   if ($('#modal').classList.contains('open')){ closeModal(); return true; }
   if ($('#typePop').classList.contains('open')){ $('#tCancel').click(); return true; }
+  if ($('#duePop').classList.contains('open')){ $('#dpClose').click(); return true; }
   if ($('#logPop').classList.contains('open')){ $('#lpCancel').click(); return true; }
   if ($('#editPop').classList.contains('open')){ closeEditPop(); return true; }
   if ($('#wedit').classList.contains('on')){ closeEdit(); return true; }
@@ -1479,6 +1522,11 @@ function renderDays(){
 
 /* ---------- day screen ---------- */
 function openDay(d){ curDay = d; renderDay(); show('day'); }
+function dueTag(w){
+  const s = stats[w.id]; if (!s || !s.due) return '';
+  const t = today(); if (s.due <= t) return '<span class="tag r now">복습 차례</span>';
+  return `<span class="tag r">복습 ${s.due.slice(5).replace('-', '/')}</span>`;
+}
 function seenCard(d, ws){
   const cnt = [0, 0, 0, 0]; let last = '';
   ws.forEach(w => { const s = stats[w.id], n = Math.min(seenCount(s), 3); cnt[n]++; if (s && s.last && s.last > last) last = s.last; });
@@ -1514,7 +1562,7 @@ function renderDay(){
     <div class="sec secrow"><span>단어 ${ws.length}개 <span style="font-weight:400">${['n','s','v','i','na','adv','c','e','k'].filter(k => cnt[k]).map(k => ` · ${POS_INFO[k].ko} ${cnt[k]}`).join('')}</span></span>
       <button type="button" class="pen" onclick="openEdit(${d})" aria-label="뜻 수정">✏️</button></div>
     <div class="mkhelp">비슷해서 헷갈리는 단어를 눌러 체크하면, 그 단어들끼리만 문제로 풀 수 있어요. 왼쪽 네모 칸을 누른 채 위아래로 쓸면 한 번에 여러 개가 체크돼요.</div>
-    <div class="item" style="display:block">${ws.map(w => `<div class="dayword${marks[w.id] ? ' on' : ''}" data-id="${esc(w.id)}"><span class="mkz"><span class="mk" aria-hidden="true">${marks[w.id] ? '✓' : ''}</span></span><span>${esc(w.kanji || w.kana)}</span><span>${esc(readingText(w))}</span><span>${esc(w.meaning)}${isNote(w) ? '<span class="tag n">오답</span>' : ''}</span></div>`).join('')}</div>`;
+    <div class="item" style="display:block">${ws.map(w => `<div class="dayword${marks[w.id] ? ' on' : ''}" data-id="${esc(w.id)}"><span class="mkz"><span class="mk" aria-hidden="true">${marks[w.id] ? '✓' : ''}</span></span><span>${esc(w.kanji || w.kana)}</span><span>${esc(readingText(w))}</span><span>${esc(w.meaning)}${isNote(w) ? '<span class="tag n">오답</span>' : ''}${dueTag(w)}</span></div>`).join('')}</div>`;
   $('#dBody').querySelectorAll('.dbtns button').forEach(b => b.onclick = () => dayAction(d, b.dataset.k));
   drawRoundPick(d); updateMarkUI();
 }
