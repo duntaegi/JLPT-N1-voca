@@ -526,6 +526,35 @@ html.wlock,html.wlock body{overflow:hidden}
 .lfield{display:block;font-size:13px;color:var(--sub);font-weight:700;margin:10px 0 4px}
 #logPop input{width:100%;font-size:17px;padding:11px 12px;border-radius:12px;border:2px solid var(--line);background:var(--paper);color:var(--ink)}
 .dprog{font-size:13px;color:var(--sub);text-align:center;margin-top:10px}
+/* ---- 일 보기 · 수정 창 · 푼 기록 다듬기 ---- */
+.ent{display:grid;grid-template-columns:1fr auto 34px;align-items:center;gap:10px;min-height:58px;padding:8px 8px 8px 16px;text-align:left}
+.ent .et{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ent .et b{flex:none;font-size:17px;font-variant-numeric:tabular-nums;line-height:1.2}
+.ent .et small{font-size:12px;color:var(--sub);font-weight:600}
+.ent .ed{background:var(--chip);color:var(--brown2);border-radius:99px;padding:5px 12px;font-size:14px;font-weight:800;font-variant-numeric:tabular-nums}
+.ent .ep{display:grid;place-items:center;font-size:16px;height:34px}
+.ent.live{opacity:.75}
+#logPop .sheet{overflow:hidden}
+#logPop input{box-sizing:border-box;display:block;width:100%;max-width:100%;min-width:0;min-height:52px;-webkit-appearance:none;appearance:none;text-align:left;padding:0 14px;line-height:52px}
+#logPop input::-webkit-date-and-time-value{text-align:left;min-height:1.2em}
+.act{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:8px;border-radius:12px;background:var(--paper);border:1px solid var(--line)}
+.act .ai{width:36px;height:36px;flex:none;border-radius:10px;background:var(--chip);display:grid;place-items:center;font-weight:800;color:var(--brown2)}
+.act .at{display:flex;flex-direction:column;gap:3px;min-width:0}
+.act .at b{font-size:15px;line-height:1.3}
+.act .at small{font-size:13px;color:var(--sub);font-weight:600}
+.cntcard{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-top:12px}
+.cntcard .ch{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.cntcard .ch b{font-size:16px}
+.cntcard .ch span{font-size:13px;color:var(--sub);font-weight:600}
+.cbar{display:flex;height:12px;border-radius:99px;overflow:hidden;margin-top:12px;background:var(--chip);gap:2px}
+.cbar i{display:block;min-width:0}
+.c0{background:var(--line)}.c1{background:color-mix(in srgb,var(--cta) 40%,var(--paper))}.c2{background:color-mix(in srgb,var(--cta) 72%,var(--paper))}.c3{background:var(--cta)}
+.clist{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.ci{text-align:center}
+.ci b{display:block;font-size:18px;font-variant-numeric:tabular-nums}
+.ci small{display:block;font-size:11px;color:var(--sub);margin-top:1px}
+.ci .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-bottom:3px}
+.cdue{margin-top:10px;padding:8px 12px;border-radius:10px;background:var(--chip);color:var(--brown2);font-size:13px;font-weight:700;text-align:center}
 </style>
 </head>
 <body>
@@ -850,6 +879,7 @@ function load(){
   rounds = get('jv2_rounds', {}) || {};
   marks = get('jv2_marks', {}) || {};
   chunks = get('jv2_chunks', {}) || {};
+  acts = get('jv2_act', {}) || {};
   studyLog = get('jv2_log', []) || []; if (!Array.isArray(studyLog)) studyLog = [];
   reindex();
 }
@@ -1055,7 +1085,7 @@ let seg = null;
 const pad2 = n => String(n).padStart(2, '0');
 const dkey = ms => { const d = new Date(ms); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); };
 const keyToDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
-function fmtDur(ms){ const m = Math.floor(ms / 60000); if (m < 60) return m + '분'; const h = Math.floor(m / 60), r = m % 60; return r ? `${h}시간 ${r}분` : `${h}시간`; }
+function fmtDur(ms){ const m = Math.round(ms / 60000); if (m < 60) return m + '분'; const h = Math.floor(m / 60), r = m % 60; return r ? `${h}시간 ${r}분` : `${h}시간`; }
 function fmtClock(ms){ const t = Math.floor(ms / 1000), h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60; return h ? `${h}:${pad2(m)}:${pad2(s)}` : `${m}:${pad2(s)}`; }
 function segStart(){ if (seg) return; seg = {s: Date.now()}; put('jv2_seg', {s: seg.s, hb: seg.s}); }
 function segEnd(){
@@ -1142,10 +1172,12 @@ function renderCal(){
     studyLog.forEach((x, i) => eachDay(x.s, x.e, (kk, a, b) => { if (kk === k) list.push([{s: a, e: b, full: x}, i]); }));
     list.sort((p, q) => p[0].s - q[0].s);
     const hm = ms => { const d = new Date(ms); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); };
-    body = list.map(([x, i]) => `<button class="ent" data-i="${i}"><b>${hm(x.s)} ~ ${x.e >= t0.getTime() + 86400000 - 1000 ? '24:00' : hm(x.e)}${x.full.s < x.s || x.full.e > x.e ? ' <small>(자정을 넘긴 기록)</small>' : ''}</b><span>${fmtDur(x.e - x.s)} ✏️</span></button>`).join('');
-    if (seg && k === today()){ const run = Date.now() - seg.s; body += `<div class="ent live"><b>지금 ${run > MIN_REC ? '기록 중' : '시작 (1분 넘으면 기록)'}</b><span>${fmtClock(run)}</span></div>`; }
-    if (!body) body = '<p class="cmsg">이 날은 기록이 없어요</p>';
-    body += `<button class="btn" id="cAdd" style="width:100%;margin-top:6px">＋ 공부 시간 직접 추가</button>`;
+    body = list.map(([x, i]) => `<button class="ent" data-i="${i}"><span class="et"><b>${hm(x.s)} ~ ${x.e >= t0.getTime() + 86400000 - 1000 ? '24:00' : hm(x.e)}</b>${x.full.s < x.s || x.full.e > x.e ? '<small>자정을 넘긴 기록</small>' : ''}</span><span class="ed">${fmtDur(x.e - x.s)}</span><span class="ep" aria-label="고치기">✏️</span></button>`).join('');
+    if (seg && k === today()){ const run = Date.now() - seg.s; body += `<div class="ent live"><span class="et"><b>지금 ${run > MIN_REC ? '기록 중' : '시작 (1분 넘으면 기록)'}</b></span><span class="ed">${fmtClock(run)}</span><span class="ep"></span></div>`; }
+    const ah = actHTML(dkey(t0.getTime()));
+    body = `<div class="sech" style="margin-top:4px"><b>공부 시간</b></div>` + (body || '<p class="cmsg">이 날은 공부 시간 기록이 없어요</p>')
+      + `<button class="btn" id="cAdd" style="width:100%;margin-top:4px">＋ 공부 시간 직접 추가</button>`
+      + `<div class="sech" style="margin-top:22px"><b>푼 기록</b></div>` + (ah || '<p class="cmsg">이 날 푼 기록이 없어요</p>');
   } else if (calView === 'week'){
     a = new Date(t0); a.setDate(a.getDate() - a.getDay()); b = new Date(a); b.setDate(b.getDate() + 6);
     label = `${a.getMonth() + 1}.${a.getDate()} ~ ${b.getMonth() + 1}.${b.getDate()}`;
@@ -1189,9 +1221,9 @@ function calShift(n){
 $('#cPrev').onclick = () => calShift(-1); $('#cNext').onclick = () => calShift(1);
 $('#cReset').onclick = async () => {
   const n = studyLog.length;
-  const v = await modal('공부 시간 기록을 모두 지울까요?', `캘린더의 공부한 시간과 공부한 날 기록 <b>${n}개</b>가 모두 사라져요.<br>지운 뒤에는 되돌릴 수 없어요. 단어 학습 기록과 복습 일정은 그대로 남아요.`, [['모두 지우기', 'go', 'pri'], ['취소', null]]);
+  const v = await modal('공부 시간 기록을 모두 지울까요?', `캘린더의 공부한 시간, 공부한 날, 푼 기록이 모두 사라져요. (공부 시간 기록 <b>${n}개</b>)<br>지운 뒤에는 되돌릴 수 없어요. 단어 학습 기록과 복습 일정은 그대로 남아요.`, [['모두 지우기', 'go', 'pri'], ['취소', null]]);
   if (v !== 'go') return;
-  studyLog = []; saveLog();
+  studyLog = []; saveLog(); acts = {}; saveActs();
   if (seg){ seg = {s: Date.now()}; put('jv2_seg', {s: seg.s, hb: seg.s}); }   // 지금 켜 둔 시간도 0부터 다시 셈
   calDate = new Date(); renderCal(); tickTimer(); toast('공부 시간 기록을 지웠어요. 새로 시작해요!');
 };
@@ -1232,7 +1264,9 @@ function srsLoad(){
   if (v && Array.isArray(v.int) && v.int.length && v.int.every(x => Number.isInteger(x) && x > 0)) srsInt = v.int;
 }
 function srsTouch(s, ok){   // 단어를 한 번 풀거나 카드로 확인할 때마다 호출
-  const t = today();
+  const t = today(), ed = epochDay(t);
+  s.h = s.h || []; if (s.h[s.h.length - 1] !== ed) s.h.push(ed);   // 단어를 본 날짜 기록
+
   if (!ok || !s.due){ s.lv = 0; s.due = addDays(t, srsInt[0]); return; }   // 틀렸거나 처음 본 단어: 내일 다시
   if (s.due <= t){ s.lv = Math.min((s.lv || 0) + 1, srsInt.length - 1); s.due = addDays(t, srsInt[s.lv]); }   // 복습일에 맞혔으면 간격을 늘림
 }
@@ -1319,6 +1353,49 @@ $('#srsSpread').onclick = async () => {
 $('#srsQuiz').onclick = () => startDue(dueList(), '망각곡선 복습', 'quiz');
 $('#srsCardBtn').onclick = () => startDue(dueList(), '망각곡선 복습', 'card');
 
+/* ---------- 푼 기록: 날짜별로 어떤 문제 묶음을 몇 개 풀었는지 ---------- */
+let acts = {};   // {날짜: {묶음 이름: {k: 'quiz'|'card', n: 본 개수, ok: 맞힌·알았던 개수, t0, t1}}}
+const saveActs = () => put('jv2_act', acts);
+const EPOCH0 = new Date(2026, 0, 1);
+const epochDay = k => Math.round((keyToDate(k) - EPOCH0) / 86400000);
+const fromEpochDay = n => dkey(new Date(2026, 0, 1 + n).getTime());
+function logAct(label, kind, ok){   // ok: true/false, 또는 null(맞았는지 모를 때는 개수만 셈)
+  const t = today(), now = Date.now();
+  const day = acts[t] || (acts[t] = {}), e = day[label] || (day[label] = {k: kind, n: 0, ok: 0, t0: now, t1: now});
+  e.n++; if (ok) e.ok++; e.t1 = now;
+  const ks = Object.keys(acts); if (ks.length > 500){ ks.sort().slice(0, ks.length - 500).forEach(k => delete acts[k]); }
+  saveActs();
+}
+function histMigrate(){   // 예전 기록은 첫 공부일·마지막 공부일만 남아 있으므로 그 두 날짜로 채워 둠
+  let n = 0;
+  for (const id in stats){
+    const s = stats[id]; if (s.h || !(s.d || s.last)) continue;
+    const a = [s.d, s.last].filter(Boolean).map(epochDay).filter(x => !isNaN(x));
+    s.h = [...new Set(a)].sort((x, y) => x - y); n++;
+  }
+  if (n) saveStats();
+}
+const seenCount = s => s ? (s.h ? s.h.length : (s.d || s.last ? 1 : 0)) : 0;   // 단어를 서로 다른 날 며칠 봤는지
+function actHTML(k){
+  const day = acts[k], hm = ms => { const d = new Date(ms); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); };
+  if (day && Object.keys(day).length){
+    return Object.entries(day).sort((a, b) => a[1].t0 - b[1].t0).map(([l, e]) => {
+      const card = e.k === 'card', unit = card ? '장' : '문제';
+      const sub = `${e.n}${unit}${card ? (e.ok ? ` · 알았어요 ${e.ok}` : '') : ` · 정답 ${e.ok}`} · ${hm(e.t0)}${e.t1 - e.t0 > 60000 ? '~' + hm(e.t1) : ''}`;
+      return `<div class="act"><span class="ai">${card ? '🃏' : '問'}</span><span class="at"><b>${esc(l)}</b><small>${sub}</small></span></div>`;
+    }).join('');
+  }
+  // 자세한 기록이 없는 날(업데이트 전): 단어에 남은 '마지막으로 푼 날' · '처음 푼 날'로 추정
+  const last = {}, first = {};
+  for (const w of words){ const s = stats[w.id]; if (!s) continue; if (s.last === k) last[w.day] = (last[w.day] || 0) + 1; if (s.d === k) first[w.day] = (first[w.day] || 0) + 1; }
+  const fmt = o => Object.keys(o).sort((a, b) => a - b).map(d => `${dayLabel(+d)} ${o[d]}개`).join(', ');
+  let h = '';
+  if (Object.keys(first).length) h += `<div class="act"><span class="ai">🌱</span><span class="at"><b>이 날 처음 푼 단어</b><small>${fmt(first)}</small></span></div>`;
+  if (Object.keys(last).length) h += `<div class="act"><span class="ai">📖</span><span class="at"><b>이 날이 마지막으로 푼 날인 단어</b><small>${fmt(last)}</small></span></div>`;
+  if (h) h += `<p class="cmsg" style="margin-top:6px">자세한 기록은 업데이트 이후부터 남아요. 이 날은 단어에 남은 날짜로 추정했어요.</p>`;
+  return h;
+}
+
 /* ---------- navigation ---------- */
 let curDay = null;
 function show(id){ stopSpeak(); closeRate(); if ($('#write').classList.contains('on')) closeWrite(); document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id)); window.scrollTo(0, 0); }
@@ -1402,6 +1479,17 @@ function renderDays(){
 
 /* ---------- day screen ---------- */
 function openDay(d){ curDay = d; renderDay(); show('day'); }
+function seenCard(d, ws){
+  const cnt = [0, 0, 0, 0]; let last = '';
+  ws.forEach(w => { const s = stats[w.id], n = Math.min(seenCount(s), 3); cnt[n]++; if (s && s.last && s.last > last) last = s.last; });
+  const tot = ws.length || 1, labs = ['안 본 단어', '1번 본 단어', '2번 본 단어', '3번 이상'];
+  const ago = last ? epochDay(today()) - epochDay(last) : 0, agoT = !last ? '' : ago === 0 ? '오늘' : ago === 1 ? '어제' : `${ago}일 전`;
+  const due = dueList().filter(w => w.day === d).length;
+  return `<div class="cntcard"><div class="ch"><b>📚 몇 번 봤나요</b><span>${last ? `마지막 ${agoT} (${last.slice(5).replace('-', '/')})` : '아직 안 봤어요'}</span></div>
+    <div class="cbar">${cnt.map((c, i) => `<i class="c${i}" style="flex:${c}"></i>`).join('')}</div>
+    <div class="clist">${cnt.map((c, i) => `<div class="ci"><i class="dot c${i}"></i><b>${c}</b><small>${labs[i]}</small></div>`).join('')}</div>
+    ${due ? `<div class="cdue">⏰ 지금 복습할 단어 ${due}개</div>` : ''}</div>`;
+}
 function renderDay(){
   const d = curDay, ws = dayWords(d), s = dayStat(d);
   let c = 0, x = 0; ws.forEach(w => { const t = stats[w.id]; if (t){ c += t.c; x += t.w; } });
@@ -1414,6 +1502,7 @@ function renderDay(){
       <div class="stat"><b style="color:var(--ng)">${s.note}</b><span>오답노트</span></div>
       <div class="stat"><b>${c + x ? Math.round(c / (c + x) * 100) + '%' : '-'}</b><span>정답률</span></div>
     </div>
+    ${seenCard(d, ws)}
     <div class="dbtns">
       <button class="mbtn main" data-k="learn"><span class="k">問</span><span class="t"><b>학습하기</b><small>${resumeText('d' + d + 'learn') || chunkSub(d, 'learn', `${s.total}개 · 25/50/75/100개씩 나눠 풀기`)}</small></span></button>
       <button class="mbtn" data-k="card"><span class="k">🃏</span><span class="t"><b>카드 뒤집기</b><small>${flashResume('d' + d) || chunkSub(d, 'card', `${s.total}장 · 나눠서 보기`)}</small></span></button>
@@ -2008,7 +2097,7 @@ function answer(i){
     notice = `<div class="notice bad"><span class="ic">📒</span><div><b>${wasNote ? '다시 오답노트에 남았어요' : '오답노트에 저장했어요'}</b><p>2번 연속 맞히면 오답노트에서 빠져요.</p></div></div>`;
   }
   if (S.kind === 'learn' && !s.d) s.d = today();
-  s.last = today(); srsTouch(s, ok);
+  s.last = today(); srsTouch(s, ok); logAct(S.label, 'quiz', ok);
   S.idx++;
   saveStats(); saveSessions(); updateTop();
 
@@ -2185,6 +2274,7 @@ function renderFlash(first){
   if (!first) window.scrollTo(0, 0);
 }
 function flashMove(d){
+  if (d === 1 && F.marks[F.ids[F.idx]] === undefined) logAct(F.label, 'card', null);   // 표시 없이 넘긴 카드도 본 개수로 셈
   const n = F.idx + d;
   if (n < 0) return;
   if (n >= F.ids.length) return finishFlash();
@@ -2197,6 +2287,7 @@ function flashMark(knew){
   const s = st(id);
   if (!knew){ s.note = true; s.streak = 0; }
   s.last = today(); srsTouch(s, knew); saveStats();
+  if (prev === undefined) logAct(F.label, 'card', knew);
   if (!knew) toast('오답노트에 넣었어요');
   flashMove(1);
 }
@@ -2276,7 +2367,7 @@ $('#items').addEventListener('click', e => {
 });
 function resetStats(){
   modal('학습 기록 초기화', '진도, 정답/오답 기록, 오답노트, 회독 체크, 체크한 단어, 진행 중인 학습이 모두 지워집니다. 단어와 공부 시간 기록(캘린더)은 그대로 남습니다.', [['초기화', 1, 'red'], ['취소', null]])
-    .then(v => { if (v){ stats = {}; sessions = {}; rounds = {}; marks = {}; chunks = {}; saveStats(); saveSessions(); saveRounds(); saveMarks(); saveChunks(); renderList(); toast('학습 기록을 초기화했습니다'); } });
+    .then(v => { if (v){ stats = {}; sessions = {}; rounds = {}; marks = {}; chunks = {}; acts = {}; saveStats(); saveSessions(); saveRounds(); saveMarks(); saveChunks(); saveActs(); renderList(); toast('학습 기록을 초기화했습니다'); } });
 }
 function deleteAll(){
   modal('단어 전체 삭제', '모든 단어와 학습 기록이 지워집니다. 되돌릴 수 없습니다.', [['전체 삭제', 1, 'red'], ['취소', null]])
@@ -2392,7 +2483,7 @@ function exportExcel(){
 
 /* ---------- backup ---------- */
 function exportBackup(){
-  const data = {app:'jpvocab', v:2, date:new Date().toISOString(), words, stats, sessions, range, rounds, edits, marks, chunks, log: studyLog, srs: srsInt};
+  const data = {app:'jpvocab', v:2, date:new Date().toISOString(), words, stats, sessions, range, rounds, edits, marks, chunks, log: studyLog, srs: srsInt, acts};
   const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = `단어장_백업_${today()}.json`;
@@ -2409,7 +2500,7 @@ $('#bfile').addEventListener('change', e => {
     if (!d || d.app !== 'jpvocab' || !Array.isArray(d.words) || d.v !== 2){ modal('백업 파일이 아닙니다', '이 버전의 단어장에서 저장한 .json 백업 파일을 선택해 주세요.', [['확인', 1, 'pri']]); return; }
     const v = await modal('백업에서 복원할까요?', `단어 ${num(d.words.length)}개와 학습 기록을 불러옵니다.<br>지금 기기에 있는 내용은 백업 내용으로 바뀝니다.`, [['복원하기', 1, 'pri'], ['취소', null]]);
     if (!v) return;
-    words = d.words; stats = d.stats || {}; sessions = d.sessions || {}; rounds = d.rounds || {}; marks = d.marks || {}; edits = d.edits || {}; chunks = d.chunks || {}; studyLog = Array.isArray(d.log) ? d.log : []; if (Array.isArray(d.srs) && d.srs.every(x => x > 0)){ srsInt = d.srs; put('jv2_srs', {int: srsInt}); } srsMigrate(); range = d.range || null; put('jv2_range', range);
+    words = d.words; stats = d.stats || {}; sessions = d.sessions || {}; rounds = d.rounds || {}; marks = d.marks || {}; edits = d.edits || {}; chunks = d.chunks || {}; studyLog = Array.isArray(d.log) ? d.log : []; acts = d.acts || {}; saveActs(); histMigrate(); if (Array.isArray(d.srs) && d.srs.every(x => x > 0)){ srsInt = d.srs; put('jv2_srs', {int: srsInt}); } srsMigrate(); range = d.range || null; put('jv2_range', range);
     saveWords(); saveStats(); saveSessions(); saveRounds(); saveEdits(); saveChunks(); saveLog(); renderList(); renderHome();
     toast('백업에서 복원했습니다');
   };
@@ -2638,7 +2729,7 @@ let wRT; window.addEventListener('resize', () => { cancelAnimationFrame(wRT); wR
 ['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => { if (!window.visualViewport || visualViewport.scale <= 1.01) e.preventDefault(); }, {passive: false}));
 document.addEventListener('dblclick', e => e.preventDefault(), {passive: false});
 load(); renderRate(); renderHome();
-srsLoad(); srsMigrate(); segRecover(); segStart(); tickTimer();
+srsLoad(); srsMigrate(); histMigrate(); segRecover(); segStart(); tickTimer();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !/claude\.ai|claudeusercontent/.test(location.host)) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
