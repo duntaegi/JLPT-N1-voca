@@ -554,6 +554,8 @@ html.wlock,html.wlock body{overflow:hidden}
 .ci b{display:block;font-size:18px;font-variant-numeric:tabular-nums}
 .ci small{display:block;font-size:11px;color:var(--sub);margin-top:1px}
 .ci .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-bottom:3px}
+.croun{margin-top:12px;font-size:14px;color:var(--sub);text-align:center}
+.croun b{color:var(--ink);font-size:16px}
 .cdue{margin-top:10px;padding:8px 12px;border-radius:10px;background:var(--chip);color:var(--brown2);font-size:13px;font-weight:700;text-align:center}
 /* ---- 복습 날짜 보기 ---- */
 .crow:disabled{opacity:.55}
@@ -918,7 +920,16 @@ const markKeyDay = key => { const m = /^d(\d+)mark$/.exec(key || ''); return m ?
 function validMarkSession(d){ const S = sessions['d' + d + 'mark']; return S && S.markSig === markSig(d) ? S : null; }
 const MAXR = 5;
 const saveRounds = () => put('jv2_rounds', rounds);
-const roundOf = d => Math.min(MAXR, Math.max(0, +rounds[d] || 0));
+/* 자동 회독: 일차 단어의 90% 이상을 n번(서로 다른 날) 이상 봤으면 n회독으로 셈. 직접 체크한 값이 더 크면 그 값을 씀 */
+const ROUND_RATIO = 0.9;
+function roundInfo(d){
+  const ws = dayWords(d), cnt = new Array(MAXR + 2).fill(0);
+  ws.forEach(w => { const n = Math.min(seenCount(stats[w.id]), MAXR); for (let i = 1; i <= n; i++) cnt[i]++; });
+  const need = Math.ceil(ws.length * ROUND_RATIO); let auto = 0;
+  if (ws.length) for (let i = 1; i <= MAXR; i++){ if (cnt[i] >= need) auto = i; else break; }
+  return {auto, next: auto + 1, left: auto >= MAXR ? 0 : Math.max(0, need - cnt[auto + 1]), total: ws.length};
+}
+const roundOf = d => Math.min(MAXR, Math.max(roundInfo(d).auto, +rounds[d] || 0));
 const dotsHTML = d => { const n = roundOf(d); return `<span class="rdots" aria-label="${n}회독">${Array.from({length: MAXR}, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</span>`; };
 function setRound(d, n){
   rounds[d] = (n === roundOf(d)) ? n - 1 : n;   // 이미 칠해진 마지막 동그라미를 다시 누르면 한 칸 줄어듦
@@ -1532,10 +1543,11 @@ function seenCard(d, ws){
   ws.forEach(w => { const s = stats[w.id], n = Math.min(seenCount(s), 3); cnt[n]++; if (s && s.last && s.last > last) last = s.last; });
   const tot = ws.length || 1, labs = ['안 본 단어', '1번 본 단어', '2번 본 단어', '3번 이상'];
   const ago = last ? epochDay(today()) - epochDay(last) : 0, agoT = !last ? '' : ago === 0 ? '오늘' : ago === 1 ? '어제' : `${ago}일 전`;
-  const due = dueList().filter(w => w.day === d).length;
+  const due = dueList().filter(w => w.day === d).length, ri = roundInfo(d);
   return `<div class="cntcard"><div class="ch"><b>📚 몇 번 봤나요</b><span>${last ? `마지막 ${agoT} (${last.slice(5).replace('-', '/')})` : '아직 안 봤어요'}</span></div>
     <div class="cbar">${cnt.map((c, i) => `<i class="c${i}" style="flex:${c}"></i>`).join('')}</div>
     <div class="clist">${cnt.map((c, i) => `<div class="ci"><i class="dot c${i}"></i><b>${c}</b><small>${labs[i]}</small></div>`).join('')}</div>
+    <div class="croun">🔁 <b>${ri.auto ? ri.auto + '회독' : '1회독 전'}</b>${ri.auto >= MAXR ? '' : ` · ${ri.next}회독까지 ${ri.left}개 더 보면 돼요`}</div>
     ${due ? `<div class="cdue">⏰ 지금 복습할 단어 ${due}개</div>` : ''}</div>`;
 }
 function renderDay(){
@@ -1667,7 +1679,8 @@ $('#epInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shi
 
 function drawRoundPick(d){
   const n = roundOf(d), box = $('#rPick'); if (!box) return;
-  $('#rSub').textContent = n ? `지금 ${n}회독 · 동그라미를 눌러 바꿔요` : '동그라미를 눌러 체크해요';
+  const ri = roundInfo(d);
+  $('#rSub').textContent = (ri.auto ? `자동 ${ri.auto}회독` : '아직 1회독 전') + (ri.auto >= MAXR ? '' : ` · ${ri.next}회독까지 ${ri.left}개 더`) + (n > ri.auto ? ` · 직접 체크 ${n}회독` : '');
   box.innerHTML = Array.from({length: MAXR}, (_, i) => `<button type="button" class="rc ${i < n ? 'on' : ''}" data-n="${i + 1}" aria-label="${i + 1}회독">${i + 1}</button>`).join('');
   box.querySelectorAll('.rc').forEach(b => b.onclick = () => { setRound(d, +b.dataset.n); drawRoundPick(d); renderDays(); });
 }
