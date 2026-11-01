@@ -920,8 +920,8 @@ const markKeyDay = key => { const m = /^d(\d+)mark$/.exec(key || ''); return m ?
 function validMarkSession(d){ const S = sessions['d' + d + 'mark']; return S && S.markSig === markSig(d) ? S : null; }
 const MAXR = 5;
 const saveRounds = () => put('jv2_rounds', rounds);
-/* 자동 회독: 일차 단어의 90% 이상을 n번(서로 다른 날) 이상 봤으면 n회독으로 셈. 직접 체크한 값이 더 크면 그 값을 씀 */
-const ROUND_RATIO = 0.9;
+/* 자동 회독: 일차 단어를 전부 n번(서로 다른 날) 이상 봤으면 n회독으로 셈. 직접 체크한 값이 더 크면 그 값을 씀 */
+const ROUND_RATIO = 1;
 function roundInfo(d){
   const ws = dayWords(d), cnt = new Array(MAXR + 2).fill(0);
   ws.forEach(w => { const n = Math.min(seenCount(stats[w.id]), MAXR); for (let i = 1; i <= n; i++) cnt[i]++; });
