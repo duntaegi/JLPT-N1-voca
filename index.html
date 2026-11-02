@@ -1449,6 +1449,31 @@ function actHTML(k){
   return h;
 }
 
+
+/* ---------- 키보드(블루투스) 단축키 ---------- */
+/* 문제: 1~4 보기 선택 · Space/Enter/→ 다음 · H 헷갈려요 · Esc 나가기 / 카드: Space/Enter 뒤집기 · → 알았어요 · ← 몰랐어요 · B 이전 · Esc 나가기 */
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+  const t = e.target, tag = t && t.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+  if (document.querySelector('.modal.open') || $('#write').classList.contains('on')) return;
+  const k = e.key, go = fn => { e.preventDefault(); if (e.repeat) return; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); fn(); };
+  if ($('#quiz').classList.contains('on') && $('#qMain').style.display !== 'none'){
+    if (!Q.answered && /^[1-4]$/.test(k)){ const b = $('#opts').children[+k - 1]; if (b) go(() => b.click()); return; }
+    if (Q.answered && (k === 'Enter' || k === ' ' || k === 'ArrowRight')){ const nb = $('#nextBtn'); if (nb) go(() => nb.click()); return; }
+    if ((k === 'h' || k === 'H' || k === 'ㅗ') && !Q.answered){ const hb = $('#qHard'); if (hb && hb.style.display !== 'none') go(() => hb.click()); return; }
+    if (k === 'Escape') go(() => quitQuiz());
+    return;
+  }
+  if ($('#flash').classList.contains('on') && $('#fMain').style.display !== 'none'){
+    if (k === ' ' || k === 'Enter' || k === 'ArrowUp' || k === 'ArrowDown') return go(flipCard);
+    if (k === 'ArrowRight') return go(() => flashMark(true));
+    if (k === 'ArrowLeft') return go(() => flashMark(false));
+    if (k === 'b' || k === 'B' || k === 'ㅠ') return go(() => { if (F.idx > 0) flashMove(-1); });
+    if (k === 'Escape') go(() => quitFlash());
+  }
+});
+
 /* ---------- navigation ---------- */
 let curDay = null;
 function show(id){ stopSpeak(); closeRate(); if ($('#write').classList.contains('on')) closeWrite(); document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id)); window.scrollTo(0, 0); }
