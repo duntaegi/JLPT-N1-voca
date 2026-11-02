@@ -132,6 +132,10 @@ button:focus-visible{outline:3px solid var(--brown2);outline-offset:2px}
 .opt.wrong{border-color:var(--ng);background:var(--ngbg);color:var(--ng)}
 .opt.wrong::before{content:"✕";background:var(--ng);color:#fff}
 .opt.dim{opacity:.78}
+.opt.picked{border-color:var(--cta);background:var(--chip)}
+.opt.picked::before{background:var(--cta);color:#fff}
+.ghead{font-size:14px;font-weight:700;color:var(--brown2);margin:16px 2px -4px}
+.ghead:first-of-type{margin-top:12px}
 .opt .osub{display:inline;margin-left:8px;font-size:15px;font-weight:500;color:var(--sub);word-break:keep-all}
 .opt .osub.none{text-decoration:line-through;text-decoration-thickness:1.5px}
 .opt.hasSp{padding-right:62px}
@@ -238,6 +242,10 @@ button:focus-visible{outline:3px solid var(--brown2);outline-offset:2px}
 .modal{position:fixed;inset:0;background:rgba(15,53,80,.4);display:none;align-items:flex-end;justify-content:center;z-index:30}
 .modal.open{display:flex}
 .sheet{background:var(--paper);width:100%;max-width:560px;border-radius:22px 22px 0 0;padding:22px 18px calc(20px + env(safe-area-inset-bottom,0px));animation:up .2s ease}
+/* 화면보다 긴 창은 안에서 스크롤 (아이패드 가로 화면에서 위가 잘리던 문제) */
+.sheet{max-height:calc(100vh - 20px);max-height:calc(100dvh - 20px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#typePop .mb{position:sticky;bottom:calc(-20px - env(safe-area-inset-bottom,0px));background:var(--paper);padding-top:10px;margin-top:6px}
+@media (max-height:900px){ #typePop .trow{padding:9px 12px} #typePop .trow small{margin-top:2px} #typePop .tlist{gap:7px} }
 .sheet h3{margin:0 0 8px;font-size:19px}
 .sheet .mm{color:var(--sub);font-size:15px;line-height:1.6}
 .mb{display:flex;flex-direction:column;gap:8px;margin-top:18px}
@@ -742,7 +750,10 @@ html.wlock,html.wlock body{overflow:hidden}
       <div class="prompt" id="qPrompt"></div>
       <div class="qpos" id="qPos"></div>
     </div>
+    <div class="ghead" id="gh1" style="display:none"></div>
     <div class="opts" id="opts"></div>
+    <div class="ghead" id="gh2" style="display:none"></div>
+    <div class="opts" id="opts2" style="display:none"></div>
     <button type="button" class="hardbtn" id="qHard"></button>
     <div class="result" id="result"></div>
   </div>
@@ -876,8 +887,18 @@ function reindex(){
   byDay = new Map();
   words.forEach(w => { if (!byDay.has(w.day)) byDay.set(w.day, []); byDay.get(w.day).push(w); });
 }
-function get(k, d){ try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch(e){ return d; } }
-function put(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){ toast('저장 공간이 부족해 저장하지 못했습니다'); } }
+/* 저장은 잠깐 모아서 한 번에: 답을 누를 때마다 큰 데이터를 통째로 쓰면 아이패드에서 키 입력이 밀려서, 0.4초 뒤 한 번만 쓰고 앱을 닫거나 숨길 때 바로 씀 */
+const pendingPut = new Map(); let putT = 0;
+function flushPut(){
+  clearTimeout(putT); putT = 0;
+  pendingPut.forEach((v, k) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){ toast('저장 공간이 부족해 저장하지 못했습니다'); } });
+  pendingPut.clear();
+}
+function get(k, d){ if (pendingPut.has(k)) return JSON.parse(JSON.stringify(pendingPut.get(k))); try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch(e){ return d; } }
+function put(k, v){ pendingPut.set(k, v); if (!putT) putT = setTimeout(flushPut, 400); }
+window.addEventListener('pagehide', flushPut);
+window.addEventListener('beforeunload', flushPut);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPut(); });
 let edits = {};   // 내가 고친 뜻: {단어id: {o: 원래 뜻, m: 고친 뜻}}
 const saveEdits = () => put('jv2_edits', edits);
 function load(){
@@ -1125,12 +1146,12 @@ function segEnd(){
   if (!seg) return;
   const e = Date.now();
   if (e - seg.s > MIN_REC){ studyLog.push({s: seg.s, e}); saveLog(); }
-  seg = null; try { localStorage.removeItem('jv2_seg'); } catch(err){}
+  seg = null; pendingPut.delete('jv2_seg'); try { localStorage.removeItem('jv2_seg'); } catch(err){}
 }
 function segRecover(){   // 앱이 강제 종료됐다면 마지막으로 저장해 둔 시각까지만 기록
   const old = get('jv2_seg', null);
   if (old && old.s && old.hb && old.hb - old.s > MIN_REC && !studyLog.some(x => x.s === old.s)){ studyLog.push({s: old.s, e: old.hb}); saveLog(); }
-  try { localStorage.removeItem('jv2_seg'); } catch(err){}
+  pendingPut.delete('jv2_seg'); try { localStorage.removeItem('jv2_seg'); } catch(err){}
 }
 /* 00시를 넘긴 기록은 날짜별로 나눠서 셈: 23:55~00:15 → 전날 5분, 다음 날 15분 */
 function eachDay(s, e, cb){
@@ -1457,9 +1478,10 @@ document.addEventListener('keydown', e => {
   const t = e.target, tag = t && t.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
   if (document.querySelector('.modal.open') || $('#write').classList.contains('on')) return;
-  const k = e.key, go = fn => { e.preventDefault(); if (e.repeat) return; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); fn(); };
+  const k = e.key, inQuiz = $('#quiz').classList.contains('on'), go = fn => { e.preventDefault(); if (e.repeat && !inQuiz) return; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); fn(); };
   if ($('#quiz').classList.contains('on') && $('#qMain').style.display !== 'none'){
-    if (!Q.answered && /^[1-4]$/.test(k)){ const b = $('#opts').children[+k - 1]; if (b) go(() => b.click()); return; }
+    if (!Q.answered && /^[1-4]$/.test(k)){ const c = Q.cur, g = c && c.combo && Q.pick[0] !== null ? 1 : 0; const b = (g ? $('#opts2') : $('#opts')).children[+k - 1]; if (b) go(() => b.click()); return; }
+    if (!Q.answered && k === 'Backspace' && Q.cur && Q.cur.combo){ go(() => { const g = Q.pick[1] !== null ? 1 : 0; Q.pick[g] = null; [...(g ? $('#opts2') : $('#opts')).children].forEach(b => b.classList.remove('picked')); window.scrollTo({top: 0, behavior: 'smooth'}); }); return; }
     if (Q.answered && (k === 'Enter' || k === ' ' || k === 'ArrowRight')){ const nb = $('#nextBtn'); if (nb) go(() => nb.click()); return; }
     if ((k === 'h' || k === 'H' || k === 'ㅗ') && !Q.answered){ const hb = $('#qHard'); if (hb && hb.style.display !== 'none') go(() => hb.click()); return; }
     if (k === 'Escape') go(() => quitQuiz());
@@ -1855,13 +1877,19 @@ function weighted(ws){ // 오답노트·많이 틀린 단어가 앞쪽에 오도
 
 /* ---------- sessions ---------- */
 /* 문제 유형 고르기 (학습하기): 랜덤이거나, 네 가지 중 여러 개 */
-const TYPE_PAIRS = {t1: [['kana','kanji']], t2: [['kanji','kana']], t3: [['meaning','kanji'], ['meaning','kana']], t4: [['kanji','meaning'], ['kana','meaning']]};
+const TYPE_PAIRS = {t1: [['kana','kanji']], t2: [['kanji','kana']], t3: [['meaning','kanji'], ['meaning','kana']], t4: [['kanji','meaning'], ['kana','meaning']], t5: [], t6: [], t7: [], tc: []};
+/* 복합 유형: 문제 하나에 보기 두 줄 (둘 다 맞아야 정답) */
+const COMBO = {t5: ['kanji', ['kana', 'meaning']], t6: ['kana', ['kanji', 'meaning']], t7: ['meaning', ['kanji', 'kana']]};
 const TYPE_LIST = [
-  ['rand', '🎲 랜덤', '아래 유형이 모두 섞여서 나와요'],
+  ['rand', '🎲 랜덤', '아래 ①~④ 유형이 섞여서 나와요 (복합 유형은 따로 골라요)'],
   ['t1', '히라가나 → 한자', '<b>じょうほう</b> → <b>情報</b>'],
   ['t2', '한자 → 히라가나', '<b>情報</b> → <b>じょうほう</b>'],
   ['t3', '뜻 → 한자 · 읽기', '<b>정보</b> → <b>情報</b>, <b>じょうほう</b>'],
-  ['t4', '한자 · 읽기 → 뜻', '<b>情報</b>, <b>じょうほう</b> → <b>정보</b>']];
+  ['t4', '한자 · 읽기 → 뜻', '<b>情報</b>, <b>じょうほう</b> → <b>정보</b>'],
+  ['tc', '🧩 복합 랜덤', '아래 복합 3가지가 섞여서 나와요 (보기 두 줄, 둘 다 맞아야 정답)'],
+  ['t5', '🧩 한자 → 읽기 + 뜻 (복합)', '<b>情報</b> → <b>じょうほう</b> 와 <b>정보</b> 둘 다'],
+  ['t6', '🧩 히라가나 → 한자 + 뜻 (복합)', '<b>じょうほう</b> → <b>情報</b> 와 <b>정보</b> 둘 다'],
+  ['t7', '🧩 뜻 → 한자 + 읽기 (복합)', '<b>정보</b> → <b>情報</b> 와 <b>じょうほう</b> 둘 다']];
 let qTypes = (() => { const v = get('jv2_qtypes', ['rand']); return Array.isArray(v) && v.length && v.every(x => x === 'rand' || TYPE_PAIRS[x]) ? v : ['rand']; })();
 function askTypes(init){
   return new Promise(res => {
@@ -1914,7 +1942,7 @@ function quitQuiz(){
 }
 
 /* ---------- quiz ---------- */
-let Q = {key:'', cur:null, answered:false};
+let Q = {key:'', cur:null, answered:false, pick:[null, null]};
 
 /* 헷갈리는 보기 만들기: 4,045단어 전체에서 실제로 있는 단어만 골라, 정답과 가장 비슷한 순서로 씀 (지어낸 보기는 없음) */
 const kataToHira = t => t.replace(/[\u30A1-\u30F6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
@@ -2033,45 +2061,68 @@ function fakeReadings(w, need){
 }
 const glen = t => Array.from(String(t || '')).length;
 
+function optsFor(w, a){
+  const L = glen(w[a]), scored = [];
+  for (const o of words){
+    if (o.id === w.id || !o[a] || o[a] === w[a]) continue;
+    // 정답이 두 개가 되는 보기는 빼기
+    if (sameReading(w, o)) continue;                                     // 같은 히라가나(한자만 다름)
+    if (o.kanji && w.kanji && o.kanji === w.kanji) continue;
+    if (meaningOverlap(w.meaning, o.meaning)) continue;                  // 뜻이 겹침
+    const dl = Math.abs(glen(o[a]) - L);
+    let d;
+    if (a === 'kana'){ d = readDist(w, o); if (d > .75 || dl > 1) continue; d += dl * .3; }   // 정말 헷갈리는 실제 단어만
+    else if (a === 'kanji'){ if (dl > 1) continue; d = kanjiDist(w, o) + readDist(w, o) * .4 + dl * 2; }
+    else d = Math.min(kanjiDist(w, o), readDist(w, o) * .8) + readDist(w, o) * .2 + Math.min(dl, 6) * .08;
+    if ((o.pos || 'n') !== (w.pos || 'n')) d += .6;                        // 같은 품사일수록 헷갈림
+    scored.push({o, d: d + Math.random() * .25});                        // 비슷한 것끼리는 매번 조금씩 바뀌게
+  }
+  scored.sort((x, y) => x.d - y.d);
+  const picks = [], texts = [], seen = new Set([w[a]]);
+  for (const {o} of scored){
+    if (seen.has(o[a]) || picks.some(q => sameReading(q, o) || meaningOverlap(q.meaning, o.meaning))) continue;
+    seen.add(o[a]); picks.push(o); texts.push(o[a]);
+    if (texts.length === 3) break;
+  }
+  // 히라가나 보기: 실제 단어가 모자라면 가짜 읽기로 채움
+  if (a === 'kana' && texts.length < 3) for (const f of fakeReadings(w, 6)){ if (texts.length >= 3) break; if (!seen.has(f)){ seen.add(f); texts.push(f); } }
+  // 그래도 모자라면(한 글자 한자처럼 읽기가 짧은 단어) 글자 수가 비슷한 실제 단어의 읽기로 채움
+  if (a === 'kana' && texts.length < 3){
+    const L2 = glen(w.kana);
+    const more = words.filter(o => o.id !== w.id && o.kana && !seen.has(o.kana) && !sameReading(w, o) && Math.abs(glen(o.kana) - L2) <= 1 && !meaningOverlap(w.meaning, o.meaning))
+      .map(o => ({o, d: readDist(w, o) + Math.random() * .25})).sort((x, y) => x.d - y.d);
+    for (const {o} of more){
+      if (texts.length >= 3) break;
+      if (seen.has(o.kana) || picks.some(q => sameReading(q, o) || meaningOverlap(q.meaning, o.meaning))) continue;
+      seen.add(o.kana); texts.splice(picks.length, 0, o.kana); picks.push(o);
+    }
+  }
+  if (texts.length < 3) return null;
+  // 보기마다 어느 단어의 것인지 기억해 둠 (정답 확인 후 읽기·한자·뜻을 같이 보여주려고). 가짜 읽기는 src가 없음
+  const items = shuffle([{t: w[a], src: w}, ...picks.map(o => ({t: o[a], src: o})), ...texts.slice(picks.length).map(t => ({t, src: null}))]);
+  return {opts: items.map(i => i.t), srcs: items.map(i => i.src), correct: items.findIndex(i => i.src === w)};
+}
 function buildQuestion(w, types){
   const fields = ['kana', 'meaning']; if (w.kanji) fields.unshift('kanji');
   const pairs = [];
   fields.forEach(p => fields.forEach(a => { if (p !== a) pairs.push([p, a]); }));
   // 고른 유형을 먼저 시도하고, 그 단어로 만들 수 없을 때(예: 한자가 없는 단어)만 다른 유형으로 대신함
-  let order = shuffle(pairs);
+  let order = shuffle(pairs.map(([p, a]) => ({p, a})));
   if (types && types.length){
     const ok = new Set(types.flatMap(t => (TYPE_PAIRS[t] || []).map(x => x.join('>'))));
-    order = [...order.filter(x => ok.has(x.join('>'))), ...order.filter(x => !ok.has(x.join('>')))];
+    const isOk = x => ok.has(x.p + '>' + x.a);
+    const cids = [...new Set(types.flatMap(t => t === 'tc' ? ['t5', 't6', 't7'] : [t]))].filter(t => COMBO[t]);
+    const combos = w.kanji ? cids.map(t => ({p: COMBO[t][0], c: COMBO[t][1]})) : [];
+    order = [...shuffle([...order.filter(isOk), ...combos]), ...order.filter(x => !isOk(x))];
   }
-  for (const [p, a] of order){
-    const L = glen(w[a]), scored = [];
-    for (const o of words){
-      if (o.id === w.id || !o[a] || o[a] === w[a]) continue;
-      // 정답이 두 개가 되는 보기는 빼기
-      if (sameReading(w, o)) continue;                                     // 같은 히라가나(한자만 다름)
-      if (o.kanji && w.kanji && o.kanji === w.kanji) continue;
-      if (meaningOverlap(w.meaning, o.meaning)) continue;                  // 뜻이 겹침
-      const dl = Math.abs(glen(o[a]) - L);
-      let d;
-      if (a === 'kana'){ d = readDist(w, o); if (d > .75 || dl > 1) continue; d += dl * .3; }   // 정말 헷갈리는 실제 단어만
-      else if (a === 'kanji'){ if (dl > 1) continue; d = kanjiDist(w, o) + readDist(w, o) * .4 + dl * 2; }
-      else d = Math.min(kanjiDist(w, o), readDist(w, o) * .8) + readDist(w, o) * .2 + Math.min(dl, 6) * .08;
-      if ((o.pos || 'n') !== (w.pos || 'n')) d += .6;                        // 같은 품사일수록 헷갈림
-      scored.push({o, d: d + Math.random() * .25});                        // 비슷한 것끼리는 매번 조금씩 바뀌게
+  for (const sp of order){
+    if (sp.c){
+      const g1 = optsFor(w, sp.c[0]), g2 = g1 && optsFor(w, sp.c[1]);
+      if (!g2) continue;
+      return {w, p: sp.p, a: sp.c[0], combo: true, ...g1, a2: sp.c[1], opts2: g2.opts, srcs2: g2.srcs, correct2: g2.correct};
     }
-    scored.sort((x, y) => x.d - y.d);
-    const picks = [], texts = [], seen = new Set([w[a]]);
-    for (const {o} of scored){
-      if (seen.has(o[a]) || picks.some(q => sameReading(q, o) || meaningOverlap(q.meaning, o.meaning))) continue;
-      seen.add(o[a]); picks.push(o); texts.push(o[a]);
-      if (texts.length === 3) break;
-    }
-    // 히라가나 보기: 실제 단어가 모자라면 가짜 읽기로 채움
-    if (a === 'kana' && texts.length < 3) for (const f of fakeReadings(w, 6)){ if (texts.length >= 3) break; if (!seen.has(f)){ seen.add(f); texts.push(f); } }
-    if (texts.length < 3) continue;
-    // 보기마다 어느 단어의 것인지 기억해 둠 (정답 확인 후 읽기·한자·뜻을 같이 보여주려고). 가짜 읽기는 src가 없음
-    const items = shuffle([{t: w[a], src: w}, ...picks.map(o => ({t: o[a], src: o})), ...texts.slice(picks.length).map(t => ({t, src: null}))]);
-    return {w, p, a, opts: items.map(i => i.t), srcs: items.map(i => i.src), correct: items.findIndex(i => i.src === w)};
+    const g = optsFor(w, sp.a); if (!g) continue;
+    return {w, p: sp.p, a: sp.a, ...g};
   }
   return null;
 }
@@ -2093,8 +2144,9 @@ function updateTop(){
   drawTicks($('#qBar').parentElement, S.ids.length);
   $('#scO').textContent = S.o; $('#scX').textContent = S.x;
 }
+let scrT = 0;
 function nextQuestion(){
-  stopSpeak();
+  clearTimeout(scrT); stopSpeak();
   const S = sessions[Q.key];
   if (!S) return goHome();
   let q = null;
@@ -2106,20 +2158,30 @@ function nextQuestion(){
   if (!q) return finishSession();
   Q.cur = q; Q.answered = false;
   updateTop();
-  $('#qLabel').innerHTML = `${FIELD_NAME[q.p]} → ${ASK_LABEL[q.a]}`;
+  $('#qLabel').innerHTML = q.combo ? `🧩 ${FIELD_NAME[q.p]} → ${FIELD_NAME[q.a]} + ${FIELD_NAME[q.a2]} (둘 다)` : `${FIELD_NAME[q.p]} → ${ASK_LABEL[q.a]}`;
   const pr = $('#qPrompt'); pr.className = 'prompt ' + q.p; pr.textContent = q.w[q.p];
   $('#qPos').innerHTML = posBadge(q.w);
   const sp = $('#qSpeak');
   sp.style.display = (q.p !== 'meaning' && q.a !== 'kana') ? '' : 'none';
   sp.onclick = () => speak(wordSpeech(q.w));
-  const box = $('#opts'); box.innerHTML = '';
-  q.opts.forEach((t, i) => {
-    const b = document.createElement('button');
-    b.className = 'opt' + (q.a === 'kanji' ? ' kanji' : '');
-    b.dataset.n = i + 1; b.textContent = t;
-    b.onclick = () => answer(i);
-    box.appendChild(b);
-  });
+  const drawOpts = (box, opts, a, pick) => {
+    box.innerHTML = '';
+    opts.forEach((t, i) => {
+      const b = document.createElement('button');
+      b.className = 'opt' + (a === 'kanji' ? ' kanji' : '');
+      b.dataset.n = i + 1; b.textContent = t;
+      b.onclick = () => pick(i);
+      box.appendChild(b);
+    });
+  };
+  Q.pick = [null, null];
+  drawOpts($('#opts'), q.opts, q.a, q.combo ? i => pickOpt(0, i) : i => answer(i));
+  const b2 = $('#opts2'), h1 = $('#gh1'), h2 = $('#gh2');
+  if (q.combo){
+    h1.style.display = h2.style.display = b2.style.display = '';
+    h1.textContent = '① ' + ASK_LABEL[q.a]; h2.textContent = '② ' + ASK_LABEL[q.a2];
+    drawOpts(b2, q.opts2, q.a2, i => pickOpt(1, i));
+  } else { h1.style.display = h2.style.display = b2.style.display = 'none'; b2.innerHTML = ''; }
   $('#result').className = 'result'; $('#result').innerHTML = '';
   // 🤔 헷갈려요: 문제를 풀기 전에 표시 (정답을 본 뒤에는 "알았는데" 하고 넘기기 쉬워서). 오답노트와 별개
   const hb = $('#qHard'); hb.style.display = '';
@@ -2155,17 +2217,30 @@ function optSub(q, j){
   }
   return src ? `${src.kanji ? src.kanji + ' · ' : ''}${src.kana}` : '';
 }
-$('#opts').addEventListener('click', e => {   // 보기 옆 🔊: 그 보기에 해당하는 단어를 읽어 줌
+[['#opts', q => q.srcs], ['#opts2', q => q.srcs2]].forEach(([sel, f]) => $(sel).addEventListener('click', e => {   // 보기 옆 🔊: 그 보기에 해당하는 단어를 읽어 줌
   const sp = e.target.closest('.osp'); if (!sp) return;
   e.stopPropagation(); e.preventDefault();
-  const j = [...$('#opts').children].indexOf(sp.parentElement), src = Q.cur && Q.cur.srcs && Q.cur.srcs[j];
+  const j = [...$(sel).children].indexOf(sp.parentElement), srcs = Q.cur && f(Q.cur), src = srcs && srcs[j];
   if (src) speak(wordSpeech(src));
-}, true);
+}, true));
+function pickOpt(g, i){   // 복합 문제: 줄마다 하나씩 고르고, 두 줄을 다 고르면 채점 (고르는 중에는 바꿀 수 있음)
+  if (Q.answered) return;
+  Q.pick[g] = i;
+  [...(g ? $('#opts2') : $('#opts')).children].forEach((b, j) => b.classList.toggle('picked', j === i));
+  if (Q.pick[0] !== null && Q.pick[1] !== null) answer(0);
+  else if (g === 0 && Q.pick[1] === null){   // ① 을 고르면 ② 줄(뜻 등)이 보이도록 자동으로 내려 줌
+    const bar = document.querySelector('#quiz .bar'), h = $('#gh2');
+    let y = h.getBoundingClientRect().top + window.scrollY - (bar ? bar.offsetHeight : 0) - 12;
+    const maxY = $('#quiz').getBoundingClientRect().bottom + window.scrollY - window.innerHeight;   // 화면 끝보다 더 내려가서 아래 빈 공간이 보이지 않게
+    y = Math.min(y, maxY);
+    if (y > window.scrollY) window.scrollTo({top: y, behavior: 'smooth'});
+  }
+}
 function answer(i){
   if (Q.answered) return;
   Q.answered = true;
   $('#qHard').style.display = 'none';
-  const S = sessions[Q.key], q = Q.cur, ok = i === q.correct, s = st(q.w.id);
+  const S = sessions[Q.key], q = Q.cur, ok = q.combo ? (Q.pick[0] === q.correct && Q.pick[1] === q.correct2) : i === q.correct, s = st(q.w.id);
   const wasNote = s.note;
   let notice = '';
   if (ok){
@@ -2187,13 +2262,15 @@ function answer(i){
   S.idx++;
   saveStats(); saveSessions(); updateTop();
 
-  [...$('#opts').children].forEach((b, j) => {
-    b.classList.add('locked');   // 안쪽 🔊 버튼이 눌리도록 disabled는 쓰지 않음 (이미 답한 문제는 answer()가 무시함)
-    if (j === q.correct) b.classList.add('right'); else if (j === i) b.classList.add('wrong'); else b.classList.add('dim');
-    const sub = optSub(q, j);
+  const paint = (box, qq, pk) => [...box.children].forEach((b, j) => {
+    b.classList.remove('picked'); b.classList.add('locked');   // 안쪽 🔊 버튼이 눌리도록 disabled는 쓰지 않음 (이미 답한 문제는 answer()가 무시함)
+    if (j === qq.correct) b.classList.add('right'); else if (j === pk) b.classList.add('wrong'); else b.classList.add('dim');
+    const sub = optSub(qq, j);
     if (sub) b.insertAdjacentHTML('beforeend', `<span class="osub${sub === '단어장에 없는 읽기' ? ' none' : ''}">(${esc(sub)})</span>`);   // 없는 읽기는 괄호 설명에 취소선
-    if (q.srcs && q.srcs[j]){ b.classList.add('hasSp'); b.insertAdjacentHTML('beforeend', '<span class="osp" role="button" aria-label="발음 듣기">🔊</span>'); }
+    if (qq.srcs && qq.srcs[j]){ b.classList.add('hasSp'); b.insertAdjacentHTML('beforeend', '<span class="osp" role="button" aria-label="발음 듣기">🔊</span>'); }
   });
+  paint($('#opts'), q, q.combo ? Q.pick[0] : i);
+  if (q.combo) paint($('#opts2'), {a: q.a2, opts: q.opts2, srcs: q.srcs2, correct: q.correct2}, Q.pick[1]);
   const m = $('#mark');
   m.innerHTML = ok ? '<div class="o"></div>' : '<div class="x"></div>';
   m.classList.remove('show'); void m.offsetWidth; m.classList.add('show');
@@ -2247,7 +2324,7 @@ function answer(i){
   }
   r.querySelectorAll('.ex .s').forEach(b => b.onclick = () => speak(w.examples[+b.dataset.i].jp));
   $('#nextBtn').onclick = nextQuestion;
-  setTimeout(() => r.scrollIntoView({behavior:'smooth', block:'start'}), 350);
+  clearTimeout(scrT); scrT = setTimeout(() => { if (Q.answered) r.scrollIntoView({behavior:'smooth', block:'start'}); }, 350);
 }
 function finishSession(){
   const key = Q.key, S = sessions[key];
