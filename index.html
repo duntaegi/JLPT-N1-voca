@@ -1881,15 +1881,10 @@ const TYPE_PAIRS = {t1: [['kana','kanji']], t2: [['kanji','kana']], t3: [['meani
 /* 복합 유형: 문제 하나에 보기 두 줄 (둘 다 맞아야 정답) */
 const COMBO = {t5: ['kanji', ['kana', 'meaning']], t6: ['kana', ['kanji', 'meaning']], t7: ['meaning', ['kanji', 'kana']]};
 const TYPE_LIST = [
-  ['rand', '🎲 랜덤', '아래 ①~④ 유형이 섞여서 나와요 (복합 유형은 따로 골라요)'],
-  ['t1', '히라가나 → 한자', '<b>じょうほう</b> → <b>情報</b>'],
-  ['t2', '한자 → 히라가나', '<b>情報</b> → <b>じょうほう</b>'],
-  ['t3', '뜻 → 한자 · 읽기', '<b>정보</b> → <b>情報</b>, <b>じょうほう</b>'],
-  ['t4', '한자 · 읽기 → 뜻', '<b>情報</b>, <b>じょうほう</b> → <b>정보</b>'],
-  ['tc', '🧩 복합 랜덤', '아래 복합 3가지가 섞여서 나와요 (보기 두 줄, 둘 다 맞아야 정답)'],
-  ['t5', '🧩 한자 → 읽기 + 뜻 (복합)', '<b>情報</b> → <b>じょうほう</b> 와 <b>정보</b> 둘 다'],
-  ['t6', '🧩 히라가나 → 한자 + 뜻 (복합)', '<b>じょうほう</b> → <b>情報</b> 와 <b>정보</b> 둘 다'],
-  ['t7', '🧩 뜻 → 한자 + 읽기 (복합)', '<b>정보</b> → <b>情報</b> 와 <b>じょうほう</b> 둘 다']];
+  ['rand', '🎲 랜덤', '아래 복합 3가지가 섞여서 나와요'],
+  ['t5', '🧩 한자 → 읽기 + 뜻', '<b>情報</b> → <b>じょうほう</b> 와 <b>정보</b> 둘 다'],
+  ['t6', '🧩 히라가나 → 한자 + 뜻', '<b>じょうほう</b> → <b>情報</b> 와 <b>정보</b> 둘 다'],
+  ['t7', '🧩 뜻 → 한자 + 읽기', '<b>정보</b> → <b>情報</b> 와 <b>じょうほう</b> 둘 다']];
 let qTypes = (() => { const v = get('jv2_qtypes', ['rand']); return Array.isArray(v) && v.length && v.every(x => x === 'rand' || TYPE_PAIRS[x]) ? v : ['rand']; })();
 function askTypes(init){
   return new Promise(res => {
@@ -2106,15 +2101,11 @@ function buildQuestion(w, types){
   const fields = ['kana', 'meaning']; if (w.kanji) fields.unshift('kanji');
   const pairs = [];
   fields.forEach(p => fields.forEach(a => { if (p !== a) pairs.push([p, a]); }));
-  // 고른 유형을 먼저 시도하고, 그 단어로 만들 수 없을 때(예: 한자가 없는 단어)만 다른 유형으로 대신함
-  let order = shuffle(pairs.map(([p, a]) => ({p, a})));
-  if (types && types.length){
-    const ok = new Set(types.flatMap(t => (TYPE_PAIRS[t] || []).map(x => x.join('>'))));
-    const isOk = x => ok.has(x.p + '>' + x.a);
-    const cids = [...new Set(types.flatMap(t => t === 'tc' ? ['t5', 't6', 't7'] : [t]))].filter(t => COMBO[t]);
-    const combos = w.kanji ? cids.map(t => ({p: COMBO[t][0], c: COMBO[t][1]})) : [];
-    order = [...shuffle([...order.filter(isOk), ...combos]), ...order.filter(x => !isOk(x))];
-  }
+  // 문제는 복합 유형(보기 두 줄)만 냄. 고른 게 없으면 3가지 모두. 한자가 없는 단어(가타카나 등)는 복합을 만들 수 없어서 그때만 낱개 유형으로 대신함
+  const want = (types || []).flatMap(t => t === 'tc' ? ['t5', 't6', 't7'] : [t]).filter(t => COMBO[t]);
+  const cids = want.length ? want : ['t5', 't6', 't7'];
+  const combos = w.kanji ? cids.map(t => ({p: COMBO[t][0], c: COMBO[t][1]})) : [];
+  const order = [...shuffle(combos), ...shuffle(pairs.map(([p, a]) => ({p, a})))];
   for (const sp of order){
     if (sp.c){
       const g1 = optsFor(w, sp.c[0]), g2 = g1 && optsFor(w, sp.c[1]);
