@@ -2230,6 +2230,7 @@ function pickOpt(g, i){   // 복합 문제: 줄마다 하나씩 고르고, 두 �
 function answer(i){
   if (Q.answered) return;
   Q.answered = true;
+  const refEl = Q.cur.combo ? $('#gh2') : $('#opts'), refTop = refEl.getBoundingClientRect().top;   // 보기에 설명이 붙어 높이가 바뀌어도 화면이 출렁이지 않게 기준 위치를 기억
   $('#qHard').style.display = 'none';
   const S = sessions[Q.key], q = Q.cur, ok = q.combo ? (Q.pick[0] === q.correct && Q.pick[1] === q.correct2) : i === q.correct, s = st(q.w.id);
   const wasNote = s.note;
@@ -2315,7 +2316,12 @@ function answer(i){
   }
   r.querySelectorAll('.ex .s').forEach(b => b.onclick = () => speak(w.examples[+b.dataset.i].jp));
   $('#nextBtn').onclick = nextQuestion;
-  clearTimeout(scrT); scrT = setTimeout(() => { if (Q.answered) r.scrollIntoView({behavior:'smooth', block:'start'}); }, 350);
+  clearTimeout(scrT);
+  const shift = refEl.getBoundingClientRect().top - refTop;
+  if (shift) window.scrollTo({top: window.scrollY + shift, behavior: 'instant'});   // 위쪽 보기가 늘어난 만큼 먼저 보정 → 위로 튀었다 내려오는 움직임이 없어짐
+  const bar = document.querySelector('#quiz .bar');
+  const ty = r.getBoundingClientRect().top + window.scrollY - (bar ? bar.offsetHeight : 0) - 10;
+  window.scrollTo({top: Math.max(0, ty), behavior: 'smooth'});   // 곧바로 한 번에 정답 설명으로
 }
 function finishSession(){
   const key = Q.key, S = sessions[key];
