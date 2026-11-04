@@ -2939,13 +2939,14 @@ const pad = $('#pad'), pCv = $('#pCv'), pCtx = pCv.getContext('2d');
 const padSave = () => put('jv2_pad', {strokes: PAD.strokes.slice(-1500), pen: PAD.pen, col: PAD.col, grid: PAD.grid, size: PAD.size});
 const padInk = c => c === 'ink' ? (getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#16364B') : c;
 function padDock(){ return window.innerWidth > window.innerHeight ? 'right' : 'bottom'; }
+const padTopOf = scr => { let t = 60; if (scr) scr.querySelectorAll('.bar, .qtop').forEach(e => { if (e.offsetParent !== null) t = Math.max(t, Math.round(e.getBoundingClientRect().bottom)); }); return scr ? t : 60; };
 function padLayout(){
   const scr = document.querySelector('.screen.on'), id = scr ? scr.id : '';
   const show = id === 'day' || id === 'quiz' || id === 'flash';
   $('#padBtn').style.display = show || PAD.open ? 'flex' : 'none';
   $('#padBtn').classList.toggle('on', PAD.open);
   const dock = padDock(), de = document.documentElement.style;
-  const bar = scr && scr.querySelector('.bar'), top = bar ? Math.round(bar.getBoundingClientRect().bottom) : 60;
+  const top = padTopOf(scr);
   de.setProperty('--padtop', Math.max(0, top) + 'px');
   de.setProperty('--padw', Math.round(Math.max(300, Math.min(window.innerWidth * .7, window.innerWidth * PAD_SZ[PAD.size]))) + 'px');
   de.setProperty('--padh', Math.round(window.innerHeight * (PAD.size === 0 ? .32 : PAD.size === 1 ? .42 : .55)) + 'px');
@@ -3013,6 +3014,10 @@ $('#pDn').onclick = () => { padFit(); $('#pScroll').scrollBy({top: $('#pScroll')
 $('#pClr').onclick = async () => { if (!PAD.strokes.length) return; const v = await modal('메모장을 모두 지울까요?', '쓴 글씨가 전부 지워져요.', [['모두 지우기', 'y', 'pri'], ['취소', null]]); if (v === 'y'){ PAD.strokes = []; padDraw(); padSave(); } };
 $('#pSz').onclick = () => { PAD.size = (PAD.size + 1) % PAD_SZ.length; padLayout(); padSave(); };
 window.addEventListener('resize', () => requestAnimationFrame(padLayout));
+// 위쪽 줄(진행 막대·점수가 있는 문제 화면 등)의 높이가 바뀌면 메모장 위치도 바로 맞춤
+if (window.ResizeObserver){ const ro = new ResizeObserver(() => requestAnimationFrame(padLayout)); document.querySelectorAll('.screen .bar, .screen .qtop').forEach(b => ro.observe(b)); }
+const padBarCheck = () => { if (PAD.open && Math.abs(padTopOf(document.querySelector('.screen.on')) - (parseFloat(document.documentElement.style.getPropertyValue('--padtop')) || 0)) > 1) padLayout(); };
+setInterval(padBarCheck, 400); window.addEventListener('scroll', padBarCheck, {passive: true});
 window.addEventListener('orientationchange', () => setTimeout(padLayout, 250));
 // 그리기 (펜 우선 · 펜이 보이면 손바닥 무시)
 const padPt = e => { const r = pCv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.width, e.pointerType === 'pen' ? (e.pressure || .5) : .5]; };
