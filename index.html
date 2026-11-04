@@ -607,7 +607,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어</p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v63</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -2926,7 +2926,15 @@ let wRT; window.addEventListener('resize', () => { cancelAnimationFrame(wRT); wR
 document.addEventListener('dblclick', e => e.preventDefault(), {passive: false});
 load(); renderRate(); renderHome();
 srsLoad(); srsMigrate(); histMigrate(); segRecover(); segStart(); tickTimer();
-if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !/claude\.ai|claudeusercontent/.test(location.host)) navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !/claude\.ai|claudeusercontent/.test(location.host)) navigator.serviceWorker.register('sw.js').then(reg => {
+  const chk = () => reg.update().catch(() => {});
+  chk(); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') chk(); });   // 앱을 다시 열 때마다 새 버전이 있는지 확인
+  let had = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {   // 새 버전이 준비되면: 홈 화면이면 바로 새로고침, 공부 중이면 알림만
+    if (!had){ had = true; return; }
+    if ($('#home').classList.contains('on')) location.reload(); else toast('새 버전이 준비됐어요. 홈으로 나가면 적용돼요', 4000);
+  });
+}).catch(() => {});
 
 /* ---------- 메모장 ---------- */
 const PAD = {open: false, strokes: [], pen: 0, col: 0, er: false, grid: false, size: 1, cur: null, penSeen: false};
