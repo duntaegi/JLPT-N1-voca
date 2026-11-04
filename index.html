@@ -485,8 +485,8 @@ html.wlock,html.wlock body{overflow:hidden}
 .dc .db{position:absolute;top:6px;left:6px;min-width:18px;height:18px;border-radius:9px;background:var(--cta);color:var(--oncta);font-size:11px;font-weight:700;display:grid;place-items:center;padding:0 5px}
 /* ---- 타이머 칩 · 캘린더 · 나눠 풀기 ---- */
 .bar{padding-right:104px}
-.hero{padding-right:110px}
-#timerPill{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:12px;z-index:26;height:34px;padding:0 12px;border-radius:99px;background:var(--paper);color:var(--ink);border:2px solid var(--cta);font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:5px;box-shadow:0 2px 6px rgba(15,53,80,.18)}
+.hero{padding-right:130px}
+#timerPill{flex:none;white-space:nowrap;height:34px;padding:0 12px;border-radius:99px;background:var(--paper);color:var(--ink);border:2px solid var(--cta);font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:5px;box-shadow:0 2px 6px rgba(15,53,80,.18)}
 #modal{z-index:31}
 #timerPill.pending{border-style:dashed;color:var(--sub)}
 #timerPill i{font-style:normal;font-size:13px}
@@ -581,7 +581,8 @@ html.wlock,html.wlock body{overflow:hidden}
 .dpw .c{flex:1;min-width:0}
 
 /* ---- 메모장 (화면 옆/아래에 붙어서 따라다니는 손글씨 판) ---- */
-#padBtn{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:98px;z-index:26;height:34px;padding:0 12px;border-radius:99px;background:var(--paper);color:var(--ink);border:2px solid var(--line);font-size:14px;font-weight:800;display:none;align-items:center;gap:4px;box-shadow:0 2px 6px rgba(15,53,80,.18)}
+#topBtns{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:12px;z-index:26;display:flex;align-items:center;gap:8px}   /* 메모장·타이머를 한 줄로 묶어서 시간이 길어져도 안 겹침 */
+#padBtn{flex:none;white-space:nowrap;height:34px;padding:0 12px;border-radius:99px;background:var(--paper);color:var(--ink);border:2px solid var(--line);font-size:14px;font-weight:800;display:none;align-items:center;gap:4px;box-shadow:0 2px 6px rgba(15,53,80,.18)}
 #padBtn.on{background:var(--cta);border-color:var(--cta);color:var(--oncta)}
 #pad{display:none;position:fixed;z-index:24;background:var(--paper);flex-direction:column;box-shadow:0 0 18px rgba(15,53,80,.22);touch-action:none}
 #pad.on{display:flex}
@@ -598,7 +599,7 @@ body.padR .wrap{max-width:calc(680px + var(--padw));padding-right:calc(16px + va
 body.padR .markbar{right:var(--padw)}
 body.padB .wrap{padding-bottom:calc(16px + var(--padh))}
 body.padB .markbar{bottom:var(--padh)}
-#day .bar,#quiz .bar,#flash .bar{padding-right:204px}   /* ✏️ 메모장 버튼 + 타이머 자리 */
+#day .bar,#quiz .bar,#flash .bar{padding-right:236px}   /* ✏️ 메모장 버튼 + 타이머 자리 */
 </style>
 </head>
 <body>
@@ -607,7 +608,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v63</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v64</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -669,7 +670,6 @@ body.padB .markbar{bottom:var(--padh)}
 </section>
 
 
-<button id="padBtn" type="button" aria-label="메모장 켜기/끄기">✏️ 메모장</button>
 <div id="pad" role="region" aria-label="메모장">
   <div class="ph"><b>✏️</b>
     <button type="button" id="pPen" aria-label="펜 두께">●</button>
@@ -685,7 +685,7 @@ body.padB .markbar{bottom:var(--padh)}
   </div>
   <div id="pScroll"><canvas id="pCv"></canvas></div>
 </div>
-<button id="timerPill" type="button" aria-label="오늘 공부 시간"><i>⏱</i><span id="tpTxt">0:00</span></button>
+<div id="topBtns"><button id="padBtn" type="button" aria-label="메모장 켜기/끄기">✏️ 메모장</button><button id="timerPill" type="button" aria-label="오늘 공부 시간"><i>⏱</i><span id="tpTxt">0:00</span></button></div>
 
 <!-- 복습 계획 -->
 <section class="screen" id="srs">
