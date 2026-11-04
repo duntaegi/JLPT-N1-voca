@@ -608,7 +608,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v64</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v65</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -3036,16 +3036,17 @@ function padErase(pt){
   if (PAD.strokes.length !== n) padDraw();
 }
 const padTouch = new Map();
+const padAvgY = () => { let t = 0; padTouch.forEach(v => { t += v.y; }); return t / (padTouch.size || 1); };
 pCv.addEventListener('pointerdown', e => {
-  if (e.pointerType === 'pen') PAD.penSeen = true;
+  if (e.pointerType === 'pen'){ PAD.penSeen = true; PAD.penT = Date.now(); }
   if (e.pointerType === 'touch'){
-    // 펜을 쓰는 중이면 손가락은 스크롤 전용, 펜이 없으면 한 손가락은 쓰기 · 두 손가락은 스크롤
-    padTouch.set(e.pointerId, {y: e.clientY, top: $('#pScroll').scrollTop});
-    if (PAD.penSeen || padTouch.size > 1){
+    // 메모장은 '두 손가락'으로만 움직임. 펜을 쓰는 중이면 한 손가락(손바닥)은 아예 무시, 펜이 없으면 한 손가락은 쓰기
+    padTouch.set(e.pointerId, {y: e.clientY});
+    if (padTouch.size >= 2){
       if (PAD.cur && !PAD.cur.er && PAD.cur.s.p.length < 3){ PAD.strokes.pop(); PAD.cur = null; padDraw(); }   // 두 번째 손가락이 닿으면 쓰던 점은 취소
-      padTouch.forEach(v => { v.y = e.clientY; v.top = $('#pScroll').scrollTop; });
-      PAD.scrolling = true; try { pCv.setPointerCapture(e.pointerId); } catch(_){} return;
+      PAD.scrolling = true; PAD.scY = padAvgY(); try { pCv.setPointerCapture(e.pointerId); } catch(_){} return;
     }
+    if (PAD.penSeen) return;
   }
   e.preventDefault();
   try { pCv.setPointerCapture(e.pointerId); } catch(_){}
@@ -3055,8 +3056,19 @@ pCv.addEventListener('pointerdown', e => {
   PAD.strokes.push(s); PAD.cur = {id: e.pointerId, s}; padStroke(s);
 });
 pCv.addEventListener('pointermove', e => {
+  if (e.pointerType === 'pen') PAD.penT = Date.now();
   const tp = padTouch.get(e.pointerId);
-  if (tp && PAD.scrolling){ e.preventDefault(); $('#pScroll').scrollTop = tp.top - (e.clientY - tp.y); return; }
+  if (tp){
+    tp.y = e.clientY;
+    if (PAD.scrolling){
+      e.preventDefault();
+      if (padTouch.size >= 2 && Date.now() - (PAD.penT || 0) > 600){   // 펜을 막 쓴 직후에는 움직이지 않음
+        const y = padAvgY(); $('#pScroll').scrollTop -= y - PAD.scY; PAD.scY = y;
+      } else PAD.scY = padAvgY();
+      return;
+    }
+    if (PAD.penSeen && !(PAD.cur && PAD.cur.id === e.pointerId)) return;
+  }
   const c = PAD.cur; if (!c || e.pointerId !== c.id) return;
   e.preventDefault();
   const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
@@ -3070,7 +3082,7 @@ pCv.addEventListener('pointermove', e => {
   });
 });
 const padEnd = e => {
-  if (padTouch.delete(e.pointerId) && !padTouch.size) PAD.scrolling = false;
+  if (padTouch.delete(e.pointerId) && padTouch.size < 2) PAD.scrolling = false;
   const c = PAD.cur; if (!c || e.pointerId !== c.id) return; PAD.cur = null; padSave();
   const sc = $('#pScroll'); let low = 0; PAD.strokes.forEach(st => st.p.forEach(q => { if (q[1] * sc.clientWidth > low) low = q[1] * sc.clientWidth; }));
   if (low + sc.clientHeight * .9 > (parseFloat(pCv.style.height) || 0) && (parseFloat(pCv.style.height) || 0) < PAD_MAXH) padFit();   // 아래쪽에 가까워지면 캔버스를 더 늘림
