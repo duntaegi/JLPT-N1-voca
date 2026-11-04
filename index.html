@@ -579,6 +579,25 @@ html.wlock,html.wlock body{overflow:hidden}
 .dpw .a{font-weight:700;min-width:28%}
 .dpw .b{color:var(--brown2);min-width:28%}
 .dpw .c{flex:1;min-width:0}
+
+/* ---- 메모장 (화면 옆/아래에 붙어서 따라다니는 손글씨 판) ---- */
+#padBtn{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:98px;z-index:26;height:34px;padding:0 12px;border-radius:99px;background:var(--paper);color:var(--ink);border:2px solid var(--line);font-size:14px;font-weight:800;display:none;align-items:center;gap:4px;box-shadow:0 2px 6px rgba(15,53,80,.18)}
+#padBtn.on{background:var(--cta);border-color:var(--cta);color:var(--oncta)}
+#pad{display:none;position:fixed;z-index:24;background:var(--paper);flex-direction:column;box-shadow:0 0 18px rgba(15,53,80,.22);touch-action:none}
+#pad.on{display:flex}
+#pad.right{right:0;top:var(--padtop,60px);bottom:0;width:var(--padw);border-left:2px solid var(--line)}
+#pad.bottom{left:0;right:0;bottom:0;height:var(--padh);border-top:2px solid var(--line)}
+#pad .ph{display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--chip);flex-wrap:wrap}
+#pad .ph b{font-size:14px;margin-right:auto;white-space:nowrap}
+#pad .ph button{min-width:38px;height:34px;padding:0 8px;border-radius:10px;background:var(--paper);border:2px solid var(--line);font-size:14px;font-weight:800;color:var(--ink);touch-action:manipulation}
+#pad .ph button.on{background:var(--cta);border-color:var(--cta);color:var(--oncta)}
+#pad .pd{display:inline-block;width:16px;height:16px;border-radius:50%;vertical-align:-3px}
+#pCv{flex:1;width:100%;min-height:0;display:block;touch-action:none;cursor:crosshair}
+body.padR .wrap{max-width:calc(680px + var(--padw));padding-right:calc(16px + var(--padw))}
+body.padR .markbar{right:var(--padw)}
+body.padB .wrap{padding-bottom:calc(16px + var(--padh))}
+body.padB .markbar{bottom:var(--padh)}
+body.padR .bar,body.padB .bar{padding-right:204px}
 </style>
 </head>
 <body>
@@ -649,6 +668,20 @@ html.wlock,html.wlock body{overflow:hidden}
 </section>
 
 
+<button id="padBtn" type="button" aria-label="메모장 켜기/끄기">✏️ 메모장</button>
+<div id="pad" role="region" aria-label="메모장">
+  <div class="ph"><b>✏️ 메모장</b>
+    <button type="button" id="pPen" aria-label="펜 두께">●</button>
+    <button type="button" id="pCol" aria-label="색"><span class="pd"></span></button>
+    <button type="button" id="pEr" aria-label="지우개">🧽</button>
+    <button type="button" id="pGr" aria-label="칸 보조선">田</button>
+    <button type="button" id="pUn" aria-label="한 획 취소">↩</button>
+    <button type="button" id="pClr" aria-label="전체 지우기">🗑</button>
+    <button type="button" id="pSz" aria-label="크기 바꾸기">⇔</button>
+    <button type="button" id="pX" aria-label="닫기">✕</button>
+  </div>
+  <canvas id="pCv"></canvas>
+</div>
 <button id="timerPill" type="button" aria-label="오늘 공부 시간"><i>⏱</i><span id="tpTxt">0:00</span></button>
 
 <!-- 복습 계획 -->
@@ -1498,7 +1531,7 @@ document.addEventListener('keydown', e => {
 
 /* ---------- navigation ---------- */
 let curDay = null;
-function show(id){ stopSpeak(); closeRate(); if ($('#write').classList.contains('on')) closeWrite(); document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id)); window.scrollTo(0, 0); }
+function show(id){ stopSpeak(); closeRate(); if ($('#write').classList.contains('on')) closeWrite(); document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id)); window.scrollTo(0, 0); try { padLayout(); } catch(e){} }
 function goHome(){ renderHome(); show('home'); }
 window.handleBack = function(){
   if ($('#modal').classList.contains('open')){ closeModal(); return true; }
@@ -2891,6 +2924,122 @@ document.addEventListener('dblclick', e => e.preventDefault(), {passive: false})
 load(); renderRate(); renderHome();
 srsLoad(); srsMigrate(); histMigrate(); segRecover(); segStart(); tickTimer();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !/claude\.ai|claudeusercontent/.test(location.host)) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+/* ---------- 메모장 ---------- */
+const PAD = {open: false, strokes: [], pen: 0, col: 0, er: false, grid: false, size: 1, cur: null, penSeen: false};
+const PAD_W = [3, 5.5, 9], PAD_COL = ['ink', '#D9534F', '#2F7FD9'], PAD_SZ = [.34, .46, .6];
+(() => {
+  const d = get('jv2_pad', null);
+  if (d){ PAD.strokes = Array.isArray(d.strokes) ? d.strokes : []; PAD.pen = d.pen | 0; PAD.col = d.col | 0; PAD.grid = !!d.grid; PAD.size = d.size == null ? 1 : d.size | 0; }
+})();
+const pad = $('#pad'), pCv = $('#pCv'), pCtx = pCv.getContext('2d');
+const padSave = () => put('jv2_pad', {strokes: PAD.strokes.slice(-1500), pen: PAD.pen, col: PAD.col, grid: PAD.grid, size: PAD.size});
+const padInk = c => c === 'ink' ? (getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#16364B') : c;
+function padDock(){ return window.innerWidth > window.innerHeight ? 'right' : 'bottom'; }
+function padLayout(){
+  const scr = document.querySelector('.screen.on'), id = scr ? scr.id : '';
+  const show = id === 'day' || id === 'quiz' || id === 'flash';
+  $('#padBtn').style.display = show || PAD.open ? 'flex' : 'none';
+  $('#padBtn').classList.toggle('on', PAD.open);
+  const dock = padDock(), de = document.documentElement.style;
+  const bar = scr && scr.querySelector('.bar'), top = bar ? Math.round(bar.getBoundingClientRect().bottom) : 60;
+  de.setProperty('--padtop', Math.max(0, top) + 'px');
+  de.setProperty('--padw', Math.round(Math.max(300, Math.min(window.innerWidth * .7, window.innerWidth * PAD_SZ[PAD.size]))) + 'px');
+  de.setProperty('--padh', Math.round(window.innerHeight * (PAD.size === 0 ? .32 : PAD.size === 1 ? .42 : .55)) + 'px');
+  pad.classList.toggle('on', PAD.open); pad.classList.toggle('right', dock === 'right'); pad.classList.toggle('bottom', dock === 'bottom');
+  document.body.classList.toggle('padR', PAD.open && dock === 'right');
+  document.body.classList.toggle('padB', PAD.open && dock === 'bottom');
+  if (PAD.open) padFit();
+}
+function padFit(){
+  const r = pCv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1, w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+  if (!w || !h) return;
+  if (pCv.width !== w || pCv.height !== h){ pCv.width = w; pCv.height = h; }
+  padDraw();
+}
+function padStroke(s){
+  const W = pCv.getBoundingClientRect().width, dpr = pCv.width / W;
+  pCtx.strokeStyle = padInk(s.c); pCtx.lineCap = pCtx.lineJoin = 'round';
+  const p = s.p;
+  if (p.length === 1){ pCtx.fillStyle = pCtx.strokeStyle; pCtx.beginPath(); pCtx.arc(p[0][0] * W * dpr, p[0][1] * W * dpr, s.w * dpr / 2, 0, 7); pCtx.fill(); return; }
+  for (let i = 1; i < p.length; i++){
+    pCtx.lineWidth = s.w * dpr * (.55 + (p[i][2] || .5) * .9);
+    pCtx.beginPath(); pCtx.moveTo(p[i - 1][0] * W * dpr, p[i - 1][1] * W * dpr); pCtx.lineTo(p[i][0] * W * dpr, p[i][1] * W * dpr); pCtx.stroke();
+  }
+}
+function padDraw(){
+  pCtx.clearRect(0, 0, pCv.width, pCv.height);
+  if (PAD.grid){   // 한자 연습용 田 칸
+    const dpr = pCv.width / pCv.getBoundingClientRect().width, c = 120 * dpr;
+    pCtx.save(); pCtx.strokeStyle = padInk('ink'); pCtx.globalAlpha = .16; pCtx.lineWidth = 1 * dpr;
+    for (let x = 0; x <= pCv.width; x += c){ pCtx.beginPath(); pCtx.moveTo(x, 0); pCtx.lineTo(x, pCv.height); pCtx.stroke(); }
+    for (let y = 0; y <= pCv.height; y += c){ pCtx.beginPath(); pCtx.moveTo(0, y); pCtx.lineTo(pCv.width, y); pCtx.stroke(); }
+    pCtx.setLineDash([5 * dpr, 6 * dpr]); pCtx.globalAlpha = .1;
+    for (let x = c / 2; x <= pCv.width; x += c){ pCtx.beginPath(); pCtx.moveTo(x, 0); pCtx.lineTo(x, pCv.height); pCtx.stroke(); }
+    for (let y = c / 2; y <= pCv.height; y += c){ pCtx.beginPath(); pCtx.moveTo(0, y); pCtx.lineTo(pCv.width, y); pCtx.stroke(); }
+    pCtx.restore();
+  }
+  PAD.strokes.forEach(padStroke);
+}
+function padTools(){
+  $('#pPen').innerHTML = `<span style="font-size:${10 + PAD.pen * 4}px;line-height:1">●</span>`;
+  $('#pCol .pd').style.background = padInk(PAD_COL[PAD.col]);
+  $('#pEr').classList.toggle('on', PAD.er); $('#pGr').classList.toggle('on', PAD.grid);
+}
+function padToggle(on){
+  PAD.open = on === undefined ? !PAD.open : on;
+  padLayout(); padTools();
+  if (PAD.open) setTimeout(padFit, 30);
+}
+$('#padBtn').onclick = () => padToggle();
+$('#pX').onclick = () => padToggle(false);
+$('#pPen').onclick = () => { PAD.pen = (PAD.pen + 1) % PAD_W.length; PAD.er = false; padTools(); padSave(); };
+$('#pCol').onclick = () => { PAD.col = (PAD.col + 1) % PAD_COL.length; PAD.er = false; padTools(); padSave(); };
+$('#pEr').onclick = () => { PAD.er = !PAD.er; padTools(); };
+$('#pGr').onclick = () => { PAD.grid = !PAD.grid; padTools(); padDraw(); padSave(); };
+$('#pUn').onclick = () => { PAD.strokes.pop(); padDraw(); padSave(); };
+$('#pClr').onclick = async () => { if (!PAD.strokes.length) return; const v = await modal('메모장을 모두 지울까요?', '쓴 글씨가 전부 지워져요.', [['모두 지우기', 'y', 'pri'], ['취소', null]]); if (v === 'y'){ PAD.strokes = []; padDraw(); padSave(); } };
+$('#pSz').onclick = () => { PAD.size = (PAD.size + 1) % PAD_SZ.length; padLayout(); padSave(); };
+window.addEventListener('resize', () => requestAnimationFrame(padLayout));
+window.addEventListener('orientationchange', () => setTimeout(padLayout, 250));
+// 그리기 (펜 우선 · 펜이 보이면 손바닥 무시)
+const padPt = e => { const r = pCv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.width, e.pointerType === 'pen' ? (e.pressure || .5) : .5]; };
+function padErase(pt){
+  const r = pCv.getBoundingClientRect(), W = r.width, rad = 16 / W;
+  const n = PAD.strokes.length;
+  PAD.strokes = PAD.strokes.filter(s => !s.p.some(q => Math.hypot(q[0] - pt[0], q[1] - pt[1]) < rad));
+  if (PAD.strokes.length !== n) padDraw();
+}
+pCv.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'pen') PAD.penSeen = true;
+  if (e.pointerType === 'touch' && PAD.penSeen) return;
+  e.preventDefault();
+  try { pCv.setPointerCapture(e.pointerId); } catch(_){}
+  const pt = padPt(e);
+  if (PAD.er){ PAD.cur = {id: e.pointerId, er: true}; padErase(pt); return; }
+  const s = {c: PAD_COL[PAD.col], w: PAD_W[PAD.pen], p: [pt]};
+  PAD.strokes.push(s); PAD.cur = {id: e.pointerId, s}; padStroke(s);
+});
+pCv.addEventListener('pointermove', e => {
+  const c = PAD.cur; if (!c || e.pointerId !== c.id) return;
+  e.preventDefault();
+  const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+  (evs.length ? evs : [e]).forEach(ev => {
+    const pt = padPt(ev);
+    if (c.er){ padErase(pt); return; }
+    const s = c.s, last = s.p[s.p.length - 1];
+    if (Math.hypot(pt[0] - last[0], pt[1] - last[1]) * pCv.getBoundingClientRect().width < .8) return;
+    pt[2] = last[2] * .6 + pt[2] * .4; s.p.push(pt);
+    padStroke({c: s.c, w: s.w, p: [last, pt]});
+  });
+});
+const padEnd = e => { const c = PAD.cur; if (!c || e.pointerId !== c.id) return; PAD.cur = null; padSave(); };
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => pCv.addEventListener(t, padEnd));
+pCv.addEventListener('touchstart', e => e.preventDefault(), {passive: false});
+pCv.addEventListener('touchmove', e => e.preventDefault(), {passive: false});
+padTools();
+
+padLayout();
 </script>
 </body>
 </html>
