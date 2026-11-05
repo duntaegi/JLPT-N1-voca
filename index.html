@@ -597,6 +597,8 @@ html.wlock,html.wlock body{overflow:hidden}
 #pCv{width:100%;display:block;touch-action:none;cursor:crosshair}
 body.padR .wrap{max-width:calc(680px + var(--padw));padding-right:calc(16px + var(--padw))}
 body.padR .markbar{right:var(--padw)}
+body.padR .mark{right:var(--padw)}   /* 정답 ○/✕ 표시는 메모장을 뺀 남은 화면의 가운데에 */
+body.padB .mark{bottom:var(--padh)}
 body.padB .wrap{padding-bottom:calc(16px + var(--padh))}
 body.padB .markbar{bottom:var(--padh)}
 #day .bar,#quiz .bar,#flash .bar{padding-right:236px}   /* ✏️ 메모장 버튼 + 타이머 자리 */
@@ -608,7 +610,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v65</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v66</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
