@@ -469,7 +469,7 @@ html.wlock,html.wlock body{overflow:hidden}
 .wpage button{width:44px;height:40px;border-radius:12px;background:var(--paper);border:2px solid var(--line);font-size:16px}
 .wpage button:disabled{opacity:.35}
 .wtools{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px 14px 14px;max-width:760px;width:100%;margin:0 auto}
-.wtools button{border-radius:14px;padding:14px 4px;font-size:15px;font-weight:700;background:var(--paper);border:2px solid var(--line)}
+.wtools button{border-radius:14px;padding:14px 4px;font-size:15px;font-weight:700;white-space:nowrap;background:var(--paper);border:2px solid var(--line)}
 .wtools button.pri{background:var(--cta);border-color:var(--cta);color:var(--oncta);box-shadow:0 3px 0 var(--bar2)}
 .wtools button:active{transform:translateY(1px)}
 
@@ -484,8 +484,8 @@ html.wlock,html.wlock body{overflow:hidden}
 #srsBox .tb:disabled{opacity:.45}
 .dc .db{position:absolute;top:6px;left:6px;min-width:18px;height:18px;border-radius:9px;background:var(--cta);color:var(--oncta);font-size:11px;font-weight:700;display:grid;place-items:center;padding:0 5px}
 /* ---- 타이머 칩 · 캘린더 · 나눠 풀기 ---- */
-.bar{padding-right:104px}
-.hero{padding-right:130px}
+.bar{padding-right:var(--topw,104px)}   /* 오른쪽 위 버튼 묶음(메모장·타이머) 폭만큼 비워 둠 — 폭은 JS가 실제로 재서 넣음 */
+.hero{padding-right:var(--topw,110px)}
 #timerPill{flex:none;white-space:nowrap;height:34px;padding:0 12px;border-radius:99px;background:var(--paper);color:var(--ink);border:2px solid var(--cta);font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:5px;box-shadow:0 2px 6px rgba(15,53,80,.18)}
 #modal{z-index:31}
 #timerPill.pending{border-style:dashed;color:var(--sub)}
@@ -569,6 +569,7 @@ html.wlock,html.wlock body{overflow:hidden}
 .crow:disabled{opacity:.55}
 .hint{font-size:12px;color:var(--sub);font-weight:600}
 .tag.r{background:var(--chip);color:var(--brown2);margin-left:6px}
+.tag{white-space:nowrap}   /* 좁은 화면에서 태그 글자가 중간에 끊기지 않고 통째로 다음 줄로 */
 .tag.r.now{background:var(--cta);color:var(--oncta)}
 .dpsheet{max-height:86vh;display:flex;flex-direction:column}
 .dpsheet .mm{margin-bottom:8px}
@@ -584,6 +585,7 @@ html.wlock,html.wlock body{overflow:hidden}
 #topBtns{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:12px;z-index:26;display:flex;align-items:center;gap:8px}   /* 메모장·타이머를 한 줄로 묶어서 시간이 길어져도 안 겹침 */
 #padBtn{flex:none;white-space:nowrap;height:34px;padding:0 12px;border-radius:99px;background:var(--paper);color:var(--ink);border:2px solid var(--line);font-size:14px;font-weight:800;display:none;align-items:center;gap:4px;box-shadow:0 2px 6px rgba(15,53,80,.18)}
 #padBtn.on{background:var(--cta);border-color:var(--cta);color:var(--oncta)}
+@media (max-width:520px){#padBtn{padding:0 10px}#padBtn .lbl{display:none}.wtools button{font-size:13px;padding:14px 2px}}
 #pad{display:none;position:fixed;z-index:24;background:var(--paper);flex-direction:column;box-shadow:0 0 18px rgba(15,53,80,.22);touch-action:none}
 #pad.on{display:flex}
 #pad.right{right:0;top:var(--padtop,60px);bottom:0;width:var(--padw);border-left:2px solid var(--line)}
@@ -601,7 +603,6 @@ body.padR .mark{right:var(--padw)}   /* 정답 ○/✕ 표시는 메모장을 �
 body.padB .mark{bottom:var(--padh)}
 body.padB .wrap{padding-bottom:calc(16px + var(--padh))}
 body.padB .markbar{bottom:var(--padh)}
-#day .bar,#quiz .bar,#flash .bar{padding-right:236px}   /* ✏️ 메모장 버튼 + 타이머 자리 */
 </style>
 </head>
 <body>
@@ -610,7 +611,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v66</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v67</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -687,7 +688,7 @@ body.padB .markbar{bottom:var(--padh)}
   </div>
   <div id="pScroll"><canvas id="pCv"></canvas></div>
 </div>
-<div id="topBtns"><button id="padBtn" type="button" aria-label="메모장 켜기/끄기">✏️ 메모장</button><button id="timerPill" type="button" aria-label="오늘 공부 시간"><i>⏱</i><span id="tpTxt">0:00</span></button></div>
+<div id="topBtns"><button id="padBtn" type="button" aria-label="메모장 켜기/끄기">✏️<span class="lbl"> 메모장</span></button><button id="timerPill" type="button" aria-label="오늘 공부 시간"><i>⏱</i><span id="tpTxt">0:00</span></button></div>
 
 <!-- 복습 계획 -->
 <section class="screen" id="srs">
@@ -1055,7 +1056,8 @@ function openRate(btn){
   $('#rateRange').value = speechRate; renderRate(); pop._paintMode && pop._paintMode();
   const r = btn.getBoundingClientRect();
   pop.style.top = (r.bottom + 8) + 'px';
-  pop.style.right = Math.max(8, window.innerWidth - r.right - 40) + 'px';
+  const pw = Math.min(320, window.innerWidth - 16);
+  pop.style.right = Math.min(Math.max(8, window.innerWidth - r.right - 40), Math.max(8, window.innerWidth - pw - 8)) + 'px';
   pop.classList.add('on');
 }
 function closeRate(){ const p = $('#ratePop'); if (p) p.classList.remove('on'); }
@@ -2718,14 +2720,14 @@ function openWrite(w){
   const pref = get('jv2_write', {}) || {};
   WR.w = w; WR.mode = w.kanji ? (pref.mode || 'kanji') : 'kana'; WR.guide = true;  // 새 단어는 항상 견본이 보이는 상태로 시작
   WR.strokes = {}; WR.page = 0; WR.cur = null;
-  $('#write').classList.add('on'); document.documentElement.classList.add('wlock');
+  $('#write').classList.add('on'); document.documentElement.classList.add('wlock'); try { padLayout(); } catch(e){}
   $('#wSpeak').onclick = () => speak(wordSpeech(w));
   renderWrite();
 }
 let writeClosedAt = 0;
 // 쓰기 창이 닫힌 직후 같은 터치가 아래 화면의 버튼(다음 문제 등)까지 눌러 버리는 것을 막음
 document.addEventListener('click', e => { if (e.isTrusted && Date.now() - writeClosedAt < 700){ e.stopPropagation(); e.preventDefault(); } }, true);
-function closeWrite(){ writeClosedAt = Date.now(); closeRate(); WR.cur = null; $('#write').classList.remove('on'); document.documentElement.classList.remove('wlock'); }
+function closeWrite(){ writeClosedAt = Date.now(); closeRate(); WR.cur = null; $('#write').classList.remove('on'); document.documentElement.classList.remove('wlock'); try { padLayout(); } catch(e){} }
 function saveWritePref(){ put('jv2_write', {mode: WR.mode}); }
 function renderWrite(){
   const w = WR.w;
@@ -2953,16 +2955,18 @@ const padTopOf = scr => { let t = 60; if (scr) scr.querySelectorAll('.bar, .qtop
 function padLayout(){
   const scr = document.querySelector('.screen.on'), id = scr ? scr.id : '';
   const show = id === 'day' || id === 'quiz' || id === 'flash';
-  $('#padBtn').style.display = show || PAD.open ? 'flex' : 'none';
+  const wr = $('#write').classList.contains('on');
+  $('#padBtn').style.display = (show || PAD.open) && !wr ? 'flex' : 'none';
   $('#padBtn').classList.toggle('on', PAD.open);
   const dock = padDock(), de = document.documentElement.style;
   const top = padTopOf(scr);
   de.setProperty('--padtop', Math.max(0, top) + 'px');
   de.setProperty('--padw', Math.round(Math.max(300, Math.min(window.innerWidth * .7, window.innerWidth * PAD_SZ[PAD.size]))) + 'px');
   de.setProperty('--padh', Math.round(window.innerHeight * (PAD.size === 0 ? .32 : PAD.size === 1 ? .42 : .55)) + 'px');
-  pad.classList.toggle('on', PAD.open); pad.classList.toggle('right', dock === 'right'); pad.classList.toggle('bottom', dock === 'bottom');
-  document.body.classList.toggle('padR', PAD.open && dock === 'right');
-  document.body.classList.toggle('padB', PAD.open && dock === 'bottom');
+  pad.classList.toggle('on', PAD.open && !wr); pad.classList.toggle('right', dock === 'right'); pad.classList.toggle('bottom', dock === 'bottom');
+  document.body.classList.toggle('padR', PAD.open && !wr && dock === 'right');
+  document.body.classList.toggle('padB', PAD.open && !wr && dock === 'bottom');
+  const tw = Math.ceil($('#topBtns').getBoundingClientRect().width) + 24; document.documentElement.style.setProperty('--topw', tw + 'px');
   if (PAD.open) padFit();
 }
 const PAD_MAXH = 5000;
@@ -3025,7 +3029,7 @@ $('#pClr').onclick = async () => { if (!PAD.strokes.length) return; const v = aw
 $('#pSz').onclick = () => { PAD.size = (PAD.size + 1) % PAD_SZ.length; padLayout(); padSave(); };
 window.addEventListener('resize', () => requestAnimationFrame(padLayout));
 // 위쪽 줄(진행 막대·점수가 있는 문제 화면 등)의 높이가 바뀌면 메모장 위치도 바로 맞춤
-if (window.ResizeObserver){ const ro = new ResizeObserver(() => requestAnimationFrame(padLayout)); document.querySelectorAll('.screen .bar, .screen .qtop').forEach(b => ro.observe(b)); }
+if (window.ResizeObserver){ new ResizeObserver(() => requestAnimationFrame(padLayout)).observe($('#topBtns')); const ro = new ResizeObserver(() => requestAnimationFrame(padLayout)); document.querySelectorAll('.screen .bar, .screen .qtop').forEach(b => ro.observe(b)); }
 const padBarCheck = () => { if (PAD.open && Math.abs(padTopOf(document.querySelector('.screen.on')) - (parseFloat(document.documentElement.style.getPropertyValue('--padtop')) || 0)) > 1) padLayout(); };
 setInterval(padBarCheck, 400); window.addEventListener('scroll', padBarCheck, {passive: true});
 window.addEventListener('orientationchange', () => setTimeout(padLayout, 250));
