@@ -628,7 +628,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v70</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v71</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -1417,13 +1417,36 @@ async function startDue(list, label, mode){
     }
     if (v !== 'new') return;
   }
-  const n = list.length, opts = [25, 50, 75, 100].filter(c => c < n);
-  const v = await modal(label, `복습할 단어가 <b>${n}개</b> 있어요. 가장 오래 미룬 단어부터 몇 개 할까요?`,
-    [...opts.map((c, i) => [`${c}개`, c, i === 0 ? 'pri' : '']), [`${n}개 전부`, n, opts.length ? '' : 'pri'], ['취소', null]]);
+  const n = list.length;
+  const v = await pickCount(label, `복습할 단어가 <b>${n}개</b> 있어요. 가장 오래 미룬 단어부터 몇 개 할까요?`, n, 'jv2_revn');
   if (!v) return;
   const pick = list.slice(0, v), lb = `${label} (${pick.length}개)`;
   if (mode === 'card') return startFlash(pick, lb, 'srs');
   return begin('srs', pick, lb, 'review', false, true);
+}
+
+/* 개수 고르기 팝업 (복습용): 슬라이더 + −/+ + 1/4 버튼. 학습 팝업과 같은 모양 */
+async function pickCount(title, intro, r, memKey){
+  const quarters = [];
+  [1, 2, 3, 4].forEach(q => { const c = Math.min(r, Math.max(1, Math.ceil(r * q / 4))); if (!quarters.some(x => x.c === c)) quarters.push({c, q}); });
+  let cur = Math.min(r, Math.max(1, +get(memKey, 25) || 25));
+  const pos = c => r <= 1 ? 0 : (c - 1) / (r - 1);
+  const ticks = quarters.map(x => `<i class="chTk" style="left:calc(17px + (100% - 34px) * ${pos(x.c)})"></i>`).join('');
+  const chips = quarters.map(x => `<button type="button" data-c="${x.c}">${x.c}개<small>${x.c === r ? '전부' : x.q + '/4'}</small></button>`).join('');
+  const p = modal(title, `${intro}
+    <div class="chPick"><div class="chBig"><span id="chN">${cur}</span><small>개</small></div>
+    <div class="chRow"><button type="button" class="stp" id="chMi" aria-label="1개 줄이기">−</button><div class="chSlW"><input type="range" id="chSl" min="1" max="${r}" step="1" value="${cur}" aria-label="할 개수">${ticks}</div><button type="button" class="stp" id="chPl" aria-label="1개 늘리기">+</button></div>
+    <div class="chQ">${chips}</div></div>`, [[`${cur}개 시작`, 'go', 'pri'], ['취소', null]]);
+  const sl = $('#chSl'), goBtn = $('#modal .mb .btn.pri');
+  const setN = c => { cur = Math.min(r, Math.max(1, c)); sl.value = cur; $('#chN').textContent = cur; goBtn.textContent = `${cur}개 시작`;
+    $('#modal .chQ').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.c === cur)); };
+  sl.oninput = () => setN(+sl.value);
+  $('#chMi').onclick = () => setN(cur - 1); $('#chPl').onclick = () => setN(cur + 1);
+  $('#modal .chQ').querySelectorAll('button').forEach(b => b.onclick = () => setN(+b.dataset.c));
+  setN(cur);
+  const v = await p;
+  if (v !== 'go') return null;
+  put(memKey, cur); return cur;
 }
 
 /* 홈 카드 */
