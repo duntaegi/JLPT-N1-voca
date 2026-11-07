@@ -502,9 +502,10 @@ html.wlock,html.wlock body{overflow:hidden}
 #chSl::-moz-range-thumb{width:28px;height:28px;border-radius:50%;background:var(--cta);border:3px solid #fff;box-shadow:0 2px 6px rgba(15,53,80,.35)}
 .chTk{position:absolute;top:50%;width:3px;height:22px;margin:-11px 0 0 -1.5px;border-radius:2px;background:var(--sub);opacity:.55;z-index:1;pointer-events:none}
 .chQ{display:flex;gap:6px;margin-top:6px}
-.chQ button{flex:1;padding:9px 2px;border-radius:10px;background:var(--chip);border:2px solid transparent;font-size:14px;font-weight:700;color:var(--ink);white-space:nowrap;touch-action:manipulation}
-.chQ button.on{border-color:var(--cta);background:var(--paper)}
-.chQ button small{display:block;font-size:11px;color:var(--sub);font-weight:600}
+.chOrd{display:flex;gap:6px;margin-top:10px}
+.chOrd button,.chQ button{flex:1;padding:9px 2px;border-radius:10px;background:var(--chip);border:2px solid transparent;font-size:14px;font-weight:700;color:var(--ink);white-space:nowrap;touch-action:manipulation}
+.chOrd button.on,.chQ button.on{border-color:var(--cta);background:var(--paper)}
+.chOrd button small,.chQ button small{display:block;font-size:11px;color:var(--sub);font-weight:600}
 #timerPill.pending{border-style:dashed;color:var(--sub)}
 #timerPill i{font-style:normal;font-size:13px}
 .dc.calt{background:var(--chip);border-color:var(--cta)}
@@ -581,7 +582,7 @@ html.wlock,html.wlock body{overflow:hidden}
 .ci .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-bottom:3px}
 .croun{margin-top:12px;font-size:14px;color:var(--sub);text-align:center}
 .croun b{color:var(--ink);font-size:16px}
-.cdue{margin-top:10px;padding:8px 12px;border-radius:10px;background:var(--chip);color:var(--brown2);font-size:13px;font-weight:700;text-align:center}
+.cdue{display:block;width:100%;border:0;cursor:pointer;touch-action:manipulation;margin-top:10px;padding:8px 12px;border-radius:10px;background:var(--chip);color:var(--brown2);font-size:13px;font-weight:700;text-align:center}
 /* ---- 복습 날짜 보기 ---- */
 .crow:disabled{opacity:.55}
 .hint{font-size:12px;color:var(--sub);font-weight:600}
@@ -628,7 +629,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v71</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v72</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -1418,15 +1419,18 @@ async function startDue(list, label, mode){
     if (v !== 'new') return;
   }
   const n = list.length;
-  const v = await pickCount(label, `복습할 단어가 <b>${n}개</b> 있어요. 가장 오래 미룬 단어부터 몇 개 할까요?`, n, 'jv2_revn');
-  if (!v) return;
-  const pick = list.slice(0, v), lb = `${label} (${pick.length}개)`;
+  const v0 = await pickCount(label, `복습할 단어가 <b>${n}개</b> 있어요. 몇 개를, 어떤 순서로 할까요?<br><small>고른 순서대로 앞에서부터 그 개수만큼 가져와요</small>`, n, 'jv2_revn', 'jv2_revord');
+  if (!v0) return;
+  let ordered = list.slice();
+  if (v0.ord === 'num') ordered.sort((a, b) => (a.no || 0) - (b.no || 0) || a.day - b.day);
+  else if (v0.ord === 'mix') ordered = shuffle(ordered);
+  const v = v0.n, pick = ordered.slice(0, v), lb = `${label} (${pick.length}개)`;
   if (mode === 'card') return startFlash(pick, lb, 'srs');
   return begin('srs', pick, lb, 'review', false, true);
 }
 
 /* 개수 고르기 팝업 (복습용): 슬라이더 + −/+ + 1/4 버튼. 학습 팝업과 같은 모양 */
-async function pickCount(title, intro, r, memKey){
+async function pickCount(title, intro, r, memKey, ordKey){
   const quarters = [];
   [1, 2, 3, 4].forEach(q => { const c = Math.min(r, Math.max(1, Math.ceil(r * q / 4))); if (!quarters.some(x => x.c === c)) quarters.push({c, q}); });
   let cur = Math.min(r, Math.max(1, +get(memKey, 25) || 25));
@@ -1436,7 +1440,12 @@ async function pickCount(title, intro, r, memKey){
   const p = modal(title, `${intro}
     <div class="chPick"><div class="chBig"><span id="chN">${cur}</span><small>개</small></div>
     <div class="chRow"><button type="button" class="stp" id="chMi" aria-label="1개 줄이기">−</button><div class="chSlW"><input type="range" id="chSl" min="1" max="${r}" step="1" value="${cur}" aria-label="할 개수">${ticks}</div><button type="button" class="stp" id="chPl" aria-label="1개 늘리기">+</button></div>
-    <div class="chQ">${chips}</div></div>`, [[`${cur}개 시작`, 'go', 'pri'], ['취소', null]]);
+    <div class="chQ">${chips}</div>
+    ${ordKey ? `<div class="chOrd"><button type="button" data-o="due">⏰ 오래 미룬 순</button><button type="button" data-o="num">🔢 번호순</button><button type="button" data-o="mix">🔀 섞기</button></div>` : ''}</div>`, [[`${cur}개 시작`, 'go', 'pri'], ['취소', null]]);
+  let ord = ordKey ? (['due', 'num', 'mix'].includes(get(ordKey, 'due')) ? get(ordKey, 'due') : 'due') : null;
+  const paintOrd = () => $('#modal').querySelectorAll('.chOrd button').forEach(b => { b.classList.toggle('on', b.dataset.o === ord); });
+  $('#modal').querySelectorAll('.chOrd button').forEach(b => b.onclick = () => { ord = b.dataset.o; paintOrd(); });
+  paintOrd();
   const sl = $('#chSl'), goBtn = $('#modal .mb .btn.pri');
   const setN = c => { cur = Math.min(r, Math.max(1, c)); sl.value = cur; $('#chN').textContent = cur; goBtn.textContent = `${cur}개 시작`;
     $('#modal .chQ').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.c === cur)); };
@@ -1446,7 +1455,7 @@ async function pickCount(title, intro, r, memKey){
   setN(cur);
   const v = await p;
   if (v !== 'go') return null;
-  put(memKey, cur); return cur;
+  put(memKey, cur); if (ordKey) put(ordKey, ord); return ordKey ? {n: cur, ord} : cur;
 }
 
 /* 홈 카드 */
@@ -1680,7 +1689,7 @@ function seenCard(d, ws){
     <div class="cbar">${cnt.map((c, i) => `<i class="c${i}" style="flex:${c}"></i>`).join('')}</div>
     <div class="clist">${cnt.map((c, i) => `<div class="ci"><i class="dot c${i}"></i><b>${c}</b><small>${labs[i]}</small></div>`).join('')}</div>
     <div class="croun">🔁 <b>${ri.auto ? ri.auto + '회독' : '1회독 전'}</b>${ri.auto >= MAXR ? '' : ` · ${ri.next}회독까지 ${ri.left}개 더 보면 돼요`}</div>
-    ${due ? `<div class="cdue">⏰ 지금 복습할 단어 ${due}개</div>` : ''}</div>`;
+    ${due ? `<button type="button" class="cdue" id="cdueBtn">⏰ 지금 복습할 단어 ${due}개 <span style="opacity:.7">· 눌러서 복습 ›</span></button>` : ''}</div>`;
 }
 function renderDay(){
   const d = curDay, ws = dayWords(d), s = dayStat(d);
@@ -1708,6 +1717,12 @@ function renderDay(){
     <div class="mkhelp">비슷해서 헷갈리는 단어를 눌러 체크하면, 그 단어들끼리만 문제로 풀 수 있어요. 왼쪽 네모 칸을 누른 채 위아래로 쓸면 한 번에 여러 개가 체크돼요.</div>
     <div class="item" style="display:block">${ws.map(w => `<div class="dayword${marks[w.id] ? ' on' : ''}" data-id="${esc(w.id)}"><span class="mkz"><span class="mk" aria-hidden="true">${marks[w.id] ? '✓' : ''}</span></span><span>${esc(w.kanji || w.kana)}</span><span>${esc(readingText(w))}</span><span>${esc(w.meaning)}${isNote(w) ? '<span class="tag n">오답</span>' : ''}${dueTag(w)}</span></div>`).join('')}</div>`;
   $('#dBody').querySelectorAll('.dbtns button').forEach(b => b.onclick = () => dayAction(d, b.dataset.k));
+  const cb = $('#cdueBtn');
+  if (cb) cb.onclick = async () => {
+    const list = dueList().filter(w => w.day === d); if (!list.length) return;
+    const v = await modal(`${dayLabel(d)} 복습`, `지금 복습할 단어가 <b>${list.length}개</b> 있어요. 어떻게 복습할까요?`, [['문제로 풀기', 'quiz', 'pri'], ['카드로 보기', 'card'], ['취소', null]]);
+    if (v) startDue(list, `${dayLabel(d)} 복습`, v);
+  };
   drawRoundPick(d); updateMarkUI();
 }
 function updateMarkUI(){
