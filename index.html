@@ -629,7 +629,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v72</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v73</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -720,7 +720,6 @@ body.padB .markbar{bottom:var(--padh)}
     <div class="introw"><input id="srsInt" type="text" inputmode="numeric" aria-label="복습 간격"><button class="btn pri" id="srsIntSave">저장</button></div>
     <div class="csum" id="srsSum" style="margin-top:14px"></div>
     <div class="sech"><b>지금 복습할 일차</b></div><div id="srsDays"></div>
-    <button class="btn" id="srsSpread" style="width:100%;margin:6px 0 4px">밀린 복습 나눠서 하기</button>
     <div class="sech"><b id="srsWeekT">앞으로 14일</b><span class="hint">날짜를 누르면 단어를 볼 수 있어요</span></div><div id="srsWeek"></div>
     <button class="btn" id="srsMore" style="width:100%;margin:6px 0 4px">30일까지 보기</button>
   </div>
@@ -1387,6 +1386,19 @@ function srsTouch(s, ok){   // 단어를 한 번 풀거나 카드로 확인할 �
   if (!ok || !s.due){ s.lv = 0; s.due = addDays(t, srsInt[0]); return; }   // 틀렸거나 처음 본 단어: 내일 다시
   if (s.due <= t){ s.lv = Math.min((s.lv || 0) + 1, srsInt.length - 1); s.due = addDays(t, srsInt[s.lv]); }   // 복습일에 맞혔으면 간격을 늘림
 }
+/* '밀린 복습 나눠서 하기'로 뒤로 밀린 복습일을 원래 규칙(마지막으로 본 날 + 간격)으로 한 번 되돌림 */
+function srsRepair(){
+  if (get('jv2_srsfix1', false)) return;
+  const t = today(); let n = 0;
+  for (const id in stats){
+    const s = stats[id];
+    if (!s || !s.due || !s.last || s.due <= t) continue;
+    const orig = addDays(s.last, srsInt[Math.min(s.lv || 0, srsInt.length - 1)]);
+    if (orig <= t && orig < s.due){ s.due = orig; n++; }
+  }
+  put('jv2_srsfix1', true);
+  if (n){ saveStats(); setTimeout(() => toast(`밀렸던 복습 ${n}개를 원래 날짜로 되돌렸어요`), 800); }
+}
 /* 이미 공부한 기록(첫 공부일·마지막 공부일·맞힌 횟수)으로 복습 일정을 한 번 추정해 둠 */
 function srsMigrate(){
   let n = 0;
@@ -1487,19 +1499,11 @@ function renderSrs(){
   $('#srsWeek').innerHTML = rows;
   $('#srsWeek').querySelectorAll('[data-due]').forEach(b => b.onclick = () => showDue(b.dataset.due));
   $('#srsMore').textContent = span === 14 ? '30일까지 보기' : '14일만 보기';
-  $('#srsSpread').style.display = over > 0 ? '' : 'none';
 }
 $('#srsIntSave').onclick = () => {
   const arr = $('#srsInt').value.split(/[\s,]+/).filter(Boolean).map(Number);
   if (!arr.length || arr.length > 10 || !arr.every(x => Number.isInteger(x) && x > 0 && x <= 365)){ toast('1~365 사이의 숫자를 쉼표로 나눠서 적어 주세요 (예: 1, 3, 7, 14, 30)'); return; }
   srsInt = arr; put('jv2_srs', {int: arr}); toast('복습 간격을 바꿨어요. 앞으로 푸는 단어부터 적용돼요'); renderSrs();
-};
-$('#srsSpread').onclick = async () => {
-  const list = dueList(), cap = 50;
-  const v = await modal('밀린 복습을 나눠서 할까요?', `지금 복습할 ${list.length}개를 <b>하루 ${cap}개씩</b> 오늘부터 며칠에 걸쳐 나눠요.<br>가장 오래 미룬 단어가 먼저 와요. 푼 기록은 그대로예요.`, [['나눠서 하기', 1, 'pri'], ['취소', null]]);
-  if (!v) return;
-  const t = today(); list.forEach((w, i) => { stats[w.id].due = addDays(t, Math.floor(i / cap)); });
-  saveStats(); renderSrs(); toast('복습 일정을 나눴어요');
 };
 let srsSpan = 14;
 $('#srsMore').onclick = () => { srsSpan = srsSpan === 14 ? 30 : 14; renderSrs(); };
@@ -3004,7 +3008,7 @@ let wRT; window.addEventListener('resize', () => { cancelAnimationFrame(wRT); wR
 ['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => { if (!window.visualViewport || visualViewport.scale <= 1.01) e.preventDefault(); }, {passive: false}));
 document.addEventListener('dblclick', e => e.preventDefault(), {passive: false});
 load(); renderRate(); renderHome();
-srsLoad(); srsMigrate(); histMigrate(); segRecover(); segStart(); tickTimer();
+srsLoad(); srsMigrate(); srsRepair(); histMigrate(); segRecover(); segStart(); tickTimer();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !/claude\.ai|claudeusercontent/.test(location.host)) navigator.serviceWorker.register('sw.js').then(reg => {
   const chk = () => reg.update().catch(() => {});
   chk(); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') chk(); });   // 앱을 다시 열 때마다 새 버전이 있는지 확인
