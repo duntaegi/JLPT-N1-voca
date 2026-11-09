@@ -641,7 +641,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v77</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v82</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -1013,7 +1013,7 @@ function load(){
   }
   stats = get('jv2_stats', {}) || {};
   sessions = get('jv2_sessions', {}) || {};
-  soundOn = get('jv2_sound', true);
+  soundOn = get('jv2_sound', false);
   range = get('jv2_range', null);
   layout = 'A';   // 보기 2(목록)는 없애고 보기 1(격자)만 씀
   flashSaves = get('jv2_flash', {}) || {};
@@ -1089,7 +1089,8 @@ function stopVoice(){
   try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch(e){}
 }
 /* 발음 속도: 1배속 = 지금까지의 기본 속도. 버튼을 누르면 막대로 조절 */
-let autoSpeak = get('jv2_autospeak', true) !== false;   // 정답 확인·카드 뒤집을 때 자동으로 읽어 줄지
+if (!get('jv2_silent1', false)){ put('jv2_sound', false); put('jv2_autospeak', false); put('jv2_silent1', true); }   // 기본은 무음: 처음 한 번만 효과음·자동 발음을 꺼 둠
+let autoSpeak = get('jv2_autospeak', false) === true;   // 정답 확인·카드 뒤집을 때 자동으로 읽어 줄지
 let speechRate = (() => { const r = +get('jv2_rate', 1); return r >= 1 && r <= 3 ? Math.round(r * 4) / 4 : 1; })();
 const rateLabel = r => (Number.isInteger(r) ? r : r.toFixed(2).replace(/0$/, '')) + '×';
 function renderRate(){ document.querySelectorAll('.rateBtn').forEach(b => b.textContent = rateLabel(speechRate)); const v = $('#rateVal'); if (v) v.textContent = rateLabel(speechRate).replace('×', '배속'); }
@@ -1151,6 +1152,9 @@ function ensureAudio(){
   } catch(e){ return null; }
 }
 function unlockAudio(){
+  // 앱을 열고 홈·일차 화면을 누르는 동안에는 소리 장치를 건드리지 않음 (블루투스가 아이폰에서 아이패드로 넘어오는 걸 막음)
+  // 효과음이 켜져 있고 문제·카드 화면일 때만 미리 깨워 둠
+  if (!soundOn || !($('#quiz').classList.contains('on') || $('#flash').classList.contains('on'))) return;
   const ac = ensureAudio(); if (!ac) return;
   try { const b = ac.createBuffer(1, 1, 22050), s = ac.createBufferSource(); s.buffer = b; s.connect(ac.destination); s.start(0); } catch(e){}
 }
@@ -2532,6 +2536,8 @@ function finishSession(){
   $('#qBar').style.width = '100%';
   $('#qMain').style.display = 'none';
   const dayCtx = !!(curDay && (key.startsWith('d') || S.fromDay));   // 일차에서 시작한 문제(다시 풀기 포함)면 '일차로 돌아가기'도 보여 줌
+  const noteDone = dayCtx && S.kind === 'note' && !dayWords(curDay).some(isNote);   // 오답노트를 다 끝냄(남은 오답 없음) → 홈으로만
+  const noteLeft = (dayCtx && S.kind === 'note' && !wrong.length) ? dayWords(curDay).filter(isNote).length : 0;   // 틀린 게 없을 때만: 남은 오답노트를 바로 이어서 하기 (틀린 게 있으면 '다시 풀기'가 먼저)
   const d = $('#qDone'); d.style.display = '';
   const icon = {learn:'🌸', review:'📖', note:'🎯'}[S.kind] || '🌸';
   d.innerHTML = `<div class="done"><div class="big">${icon}</div><h3>${esc(S.label)} 완료!</h3><p>${num(tot)}문제</p></div>
@@ -2541,13 +2547,15 @@ function finishSession(){
       <div class="stat"><b>${rate}%</b><span>정답률</span></div>
     </div>
     ${wrong.length ? `<button class="next" id="dWrong">다시 볼 ${wrong.length}개 바로 풀기</button>` : ''}
+    ${noteLeft ? `<button class="next" id="dNoteGo">📝 오답노트 이어서 하기 (${noteLeft}개)</button>` : ''}
     ${hm.length ? `<button class="next ghost" id="dHard">🤔 헷갈려요 ${hm.length}개만 풀기</button>` : ''}
-    ${dayCtx ? `<button class="next ghost" id="dHome">${dayLabel(curDay)}로 돌아가기</button><button class="next ghost" id="dGoHome" style="margin-top:0">🏠 홈으로</button>` : `<button class="next ghost" id="dHome">홈으로</button>`}`;
+    ${noteDone ? `<button class="next ghost" id="dHome">🏠 홈으로</button>` : dayCtx ? `<button class="next ghost" id="dHome">${dayLabel(curDay)}로 돌아가기</button><button class="next ghost" id="dGoHome" style="margin-top:0">🏠 홈으로</button>` : `<button class="next ghost" id="dHome">홈으로</button>`}`;
   const keepDay = async k => { if (dayCtx && sessions[k]){ sessions[k].fromDay = true; saveSessions(); } };
   if (wrong.length) $('#dWrong').onclick = async () => { await begin('retry', wrong.map(id => byId.get(id)), '틀린 단어 다시 풀기', 'note', false, true); keepDay('retry'); };   // 바로 다시 풀 때도 유형을 새로 고름
   if (hm.length) $('#dHard').onclick = async () => { await begin('retryH', hm.map(id => byId.get(id)), '헷갈리는 단어 풀기', 'learn', false, true); keepDay('retryH'); };
-  $('#dHome').onclick = () => { if (dayCtx){ renderDay(); show('day'); } else goHome(); };
+  $('#dHome').onclick = () => { if (dayCtx && !noteDone){ renderDay(); show('day'); } else goHome(); };
   if ($('#dGoHome')) $('#dGoHome').onclick = goHome;
+  if (noteLeft) $('#dNoteGo').onclick = () => { const dd = curDay, n = dayWords(dd).filter(isNote); if (n.length) begin('d' + dd + 'note', n, `${dayLabel(dd)} 오답노트`, 'note'); };
   sfx('done');
   window.scrollTo(0, 0);
 }
