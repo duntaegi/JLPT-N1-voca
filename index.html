@@ -641,7 +641,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v75</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v76</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -2541,10 +2541,11 @@ function finishSession(){
     </div>
     ${wrong.length ? `<button class="next" id="dWrong">다시 볼 ${wrong.length}개 바로 풀기</button>` : ''}
     ${hm.length ? `<button class="next ghost" id="dHard">🤔 헷갈려요 ${hm.length}개만 풀기</button>` : ''}
-    <button class="next ghost" id="dHome">${curDay && key.startsWith('d') ? dayLabel(curDay) + '로 돌아가기' : '홈으로'}</button>`;
+    ${curDay && key.startsWith('d') ? `<button class="next ghost" id="dHome">${dayLabel(curDay)}로 돌아가기</button><button class="next ghost" id="dGoHome" style="margin-top:0">🏠 홈으로</button>` : `<button class="next ghost" id="dHome">홈으로</button>`}`;
   if (wrong.length) $('#dWrong').onclick = () => begin('retry', wrong.map(id => byId.get(id)), '틀린 단어 다시 풀기', 'note', false, true);   // 바로 다시 풀 때도 유형을 새로 고름
   if (hm.length) $('#dHard').onclick = () => begin('retryH', hm.map(id => byId.get(id)), '헷갈리는 단어 풀기', 'learn', false, true);
   $('#dHome').onclick = () => { if (curDay && key.startsWith('d')){ renderDay(); show('day'); } else goHome(); };
+  if ($('#dGoHome')) $('#dGoHome').onclick = goHome;
   sfx('done');
   window.scrollTo(0, 0);
 }
@@ -2666,12 +2667,14 @@ function finishFlash(){
     </div>
     ${unknownIds.length ? `<button class="next" id="fRe">몰랐던 ${unknownIds.length}장 다시 보기</button>` : ''}
     <button class="next ghost" id="fAgain" style="margin-top:0">전체 다시 섞어서 보기</button>
-    <button class="next ghost" id="fBack2" style="margin-top:0">돌아가기</button>`;
+    <button class="next ghost" id="fBack2" style="margin-top:0">${F.back === 'day' ? dayLabel(curDay) + '로 돌아가기' : '돌아가기'}</button>
+    ${F.back === 'day' ? '<button class="next ghost" id="fGoHome" style="margin-top:0">🏠 홈으로</button>' : ''}`;
   const all = F.ids.slice(), label = F.label, back = F.back;
   const key = F.key;
   if (unknownIds.length) $('#fRe').onclick = () => { startFlash(unknownIds.map(id => byId.get(id)).filter(Boolean), label, ''); F.back = back; };
   $('#fAgain').onclick = () => { startFlash(all.map(id => byId.get(id)).filter(Boolean), label, key); F.back = back; };
   $('#fBack2').onclick = quitFlash;
+  if ($('#fGoHome')) $('#fGoHome').onclick = () => { F.back = 'home'; quitFlash(); };
   sfx('done'); window.scrollTo(0, 0);
 }
 
