@@ -641,7 +641,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v76</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v77</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -2531,6 +2531,7 @@ function finishSession(){
   const hm = [...new Set(S.hmarks || [])].filter(id => byId.has(id) && marks[id]);
   $('#qBar').style.width = '100%';
   $('#qMain').style.display = 'none';
+  const dayCtx = !!(curDay && (key.startsWith('d') || S.fromDay));   // 일차에서 시작한 문제(다시 풀기 포함)면 '일차로 돌아가기'도 보여 줌
   const d = $('#qDone'); d.style.display = '';
   const icon = {learn:'🌸', review:'📖', note:'🎯'}[S.kind] || '🌸';
   d.innerHTML = `<div class="done"><div class="big">${icon}</div><h3>${esc(S.label)} 완료!</h3><p>${num(tot)}문제</p></div>
@@ -2541,10 +2542,11 @@ function finishSession(){
     </div>
     ${wrong.length ? `<button class="next" id="dWrong">다시 볼 ${wrong.length}개 바로 풀기</button>` : ''}
     ${hm.length ? `<button class="next ghost" id="dHard">🤔 헷갈려요 ${hm.length}개만 풀기</button>` : ''}
-    ${curDay && key.startsWith('d') ? `<button class="next ghost" id="dHome">${dayLabel(curDay)}로 돌아가기</button><button class="next ghost" id="dGoHome" style="margin-top:0">🏠 홈으로</button>` : `<button class="next ghost" id="dHome">홈으로</button>`}`;
-  if (wrong.length) $('#dWrong').onclick = () => begin('retry', wrong.map(id => byId.get(id)), '틀린 단어 다시 풀기', 'note', false, true);   // 바로 다시 풀 때도 유형을 새로 고름
-  if (hm.length) $('#dHard').onclick = () => begin('retryH', hm.map(id => byId.get(id)), '헷갈리는 단어 풀기', 'learn', false, true);
-  $('#dHome').onclick = () => { if (curDay && key.startsWith('d')){ renderDay(); show('day'); } else goHome(); };
+    ${dayCtx ? `<button class="next ghost" id="dHome">${dayLabel(curDay)}로 돌아가기</button><button class="next ghost" id="dGoHome" style="margin-top:0">🏠 홈으로</button>` : `<button class="next ghost" id="dHome">홈으로</button>`}`;
+  const keepDay = async k => { if (dayCtx && sessions[k]){ sessions[k].fromDay = true; saveSessions(); } };
+  if (wrong.length) $('#dWrong').onclick = async () => { await begin('retry', wrong.map(id => byId.get(id)), '틀린 단어 다시 풀기', 'note', false, true); keepDay('retry'); };   // 바로 다시 풀 때도 유형을 새로 고름
+  if (hm.length) $('#dHard').onclick = async () => { await begin('retryH', hm.map(id => byId.get(id)), '헷갈리는 단어 풀기', 'learn', false, true); keepDay('retryH'); };
+  $('#dHome').onclick = () => { if (dayCtx){ renderDay(); show('day'); } else goHome(); };
   if ($('#dGoHome')) $('#dGoHome').onclick = goHome;
   sfx('done');
   window.scrollTo(0, 0);
