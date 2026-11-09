@@ -488,6 +488,18 @@ html.wlock,html.wlock body{overflow:hidden}
 .hero{padding-right:var(--topw,110px)}
 #timerPill{flex:none;white-space:nowrap;height:34px;padding:0 12px;border-radius:99px;background:var(--paper);color:var(--ink);border:2px solid var(--cta);font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:5px;box-shadow:0 2px 6px rgba(15,53,80,.18)}
 #modal{z-index:31}
+.freqchips{display:flex;gap:6px;flex-wrap:wrap}
+.freqchips button{flex:1;min-width:72px;padding:10px 6px;border-radius:12px;background:var(--chip);border:2px solid transparent;font-size:14px;font-weight:700;color:var(--ink);white-space:nowrap;touch-action:manipulation}
+.freqchips button small{display:block;font-size:11px;color:var(--sub);font-weight:600}
+.freqchips button.on{border-color:var(--cta);background:var(--paper)}
+.frow{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:6px;border-radius:12px;background:var(--paper);border:1px solid var(--line)}
+.frow .rk{flex:none;width:30px;text-align:center;font-weight:800;color:var(--sub);font-size:14px}
+.frow .fw{flex:1;min-width:0}
+.frow .fw b{display:block;font-size:19px;line-height:1.3;overflow-wrap:anywhere}
+.frow .fw small{display:block;font-size:13px;color:var(--sub);overflow-wrap:anywhere}
+.frow .fn{flex:none;text-align:right}
+.frow .fn b{display:block;font-size:17px;color:var(--ng)}
+.frow .fn small{display:block;font-size:12px;color:var(--sub);white-space:nowrap}
 .chPick{margin:14px 0 4px;text-align:center}
 .chBig{font-size:44px;font-weight:800;color:var(--ink);line-height:1;letter-spacing:-1px}
 .chBig small{font-size:18px;font-weight:700;color:var(--sub);margin-left:2px}
@@ -629,7 +641,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v73</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v74</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -660,6 +672,16 @@ body.padB .markbar{bottom:var(--padh)}
         <button class="tb card" id="srsCardBtn"><b>카드로 복습</b><small>보고 떠올리기</small></button>
       </div>
       <button class="srslink" onclick="openSrs()">복습 계획 · 간격 보기 ›</button>
+    </div>
+
+    <div class="tcard" id="freqBox">
+      <div class="th"><b>😣 자주 틀리는 단어</b><span class="rng" id="freqCnt">0개</span></div>
+      <p class="srsp" id="freqSub"></p>
+      <div class="tbtns">
+        <button class="tb main" id="freqQuiz"><b>문제로 풀기</b><small>많이 틀린 단어부터</small></button>
+        <button class="tb card" id="freqCardBtn"><b>카드로 보기</b><small>눈으로 익히기</small></button>
+      </div>
+      <button class="srslink" onclick="openFreq()">틀린 횟수 순위 보기 ›</button>
     </div>
 
     <div class="sech"><b>일차별 학습</b></div>
@@ -722,6 +744,24 @@ body.padB .markbar{bottom:var(--padh)}
     <div class="sech"><b>지금 복습할 일차</b></div><div id="srsDays"></div>
     <div class="sech"><b id="srsWeekT">앞으로 14일</b><span class="hint">날짜를 누르면 단어를 볼 수 있어요</span></div><div id="srsWeek"></div>
     <button class="btn" id="srsMore" style="width:100%;margin:6px 0 4px">30일까지 보기</button>
+  </div>
+</section>
+
+<section class="screen" id="freq">
+  <div class="bar">
+    <button class="icon" onclick="goHome()" aria-label="뒤로">←</button>
+    <h2>자주 틀리는 단어</h2>
+  </div>
+  <div class="wrap">
+    <div class="srsnote"><b>틀린 횟수 순위</b><p>문제에서 틀린 횟수를 단어마다 세어 둔 기록이에요. 아래에서 기준을 고르면 그만큼 이상 틀린 단어만 모아서 보고, 바로 문제로 풀 수 있어요.</p></div>
+    <div class="freqchips" id="freqChips"></div>
+    <div class="csum" id="freqSum" style="margin-top:12px"></div>
+    <div class="tbtns" style="margin-bottom:12px">
+      <button class="tb main" id="freqQuiz2"><b>문제로 풀기</b><small>많이 틀린 단어부터</small></button>
+      <button class="tb card" id="freqCard2"><b>카드로 보기</b><small>눈으로 익히기</small></button>
+    </div>
+    <div id="freqList"></div>
+    <button class="btn" id="freqMore" style="width:100%;margin:6px 0 4px;display:none">더 보기</button>
   </div>
 </section>
 
@@ -1470,6 +1510,45 @@ async function pickCount(title, intro, r, memKey, ordKey){
   put(memKey, cur); if (ordKey) put(ordKey, ord); return ordKey ? {n: cur, ord} : cur;
 }
 
+/* 자주 틀리는 단어: 단어마다 틀린 횟수(s.w)를 모아서 보여 주고 바로 풀기 */
+let freqMin = Math.max(1, +get('jv2_freqmin', 2) || 2), freqShown = 100;
+function freqList(min){
+  return words.filter(w => { const s = stats[w.id]; return s && (s.w || 0) >= min; })
+    .sort((a, b) => { const x = stats[a.id], y = stats[b.id]; return (y.w - x.w) || (y.w / (y.w + y.c || 1) - x.w / (x.w + x.c || 1)) || a.day - b.day || (a.no || 0) - (b.no || 0); });
+}
+function renderFreqCard(){
+  const list = freqList(freqMin), top = list[0];
+  $('#freqCnt').textContent = list.length ? list.length + '개' : '없음';
+  $('#freqSub').textContent = list.length ? `${freqMin}번 이상 틀린 단어예요 · 가장 많이 틀린 건 ${top.kanji || top.kana} (${stats[top.id].w}번)` : `${freqMin}번 이상 틀린 단어가 아직 없어요`;
+  $('#freqQuiz').disabled = $('#freqCardBtn').disabled = !list.length;
+}
+function openFreq(){ freqShown = 100; renderFreq(); show('freq'); }
+function renderFreq(){
+  const list = freqList(freqMin), levels = [1, 2, 3, 5];
+  $('#freqChips').innerHTML = levels.map(m => `<button type="button" data-m="${m}" class="${m === freqMin ? 'on' : ''}">${m}번 이상<small>${freqList(m).length}개</small></button>`).join('');
+  $('#freqChips').querySelectorAll('button').forEach(b => b.onclick = () => { freqMin = +b.dataset.m; put('jv2_freqmin', freqMin); freqShown = 100; renderFreq(); });
+  let tot = 0; list.forEach(w => tot += stats[w.id].w);
+  $('#freqSum').innerHTML = `<div class="stat"><b>${list.length}개</b><span>${freqMin}번 이상 틀린 단어</span></div><div class="stat"><b>${tot}번</b><span>이 단어들을 틀린 횟수</span></div>`;
+  $('#freqQuiz2').disabled = $('#freqCard2').disabled = !list.length;
+  $('#freqList').innerHTML = list.length ? list.slice(0, freqShown).map((w, i) => { const s = stats[w.id], n = s.c + s.w;
+    return `<div class="frow"><span class="rk">${i + 1}</span><span class="fw"><b>${esc(w.kanji || w.kana)}</b><small>${esc(readingText(w))} · ${esc(w.meaning)}</small></span><span class="fn"><b>✕ ${s.w}번</b><small>○ ${s.c} · ${dayLabel(w.day)}${n ? ' · 정답률 ' + Math.round(s.c / n * 100) + '%' : ''}</small></span></div>`; }).join('')
+    : '<p class="srsp" style="text-align:center;padding:18px 0">이 기준으로 틀린 단어가 아직 없어요 👍</p>';
+  $('#freqMore').style.display = list.length > freqShown ? '' : 'none';
+  $('#freqMore').textContent = `더 보기 (${Math.min(100, list.length - freqShown)}개)`;
+}
+$('#freqMore').onclick = () => { freqShown += 100; renderFreq(); };
+async function startFreq(mode){
+  const list = freqList(freqMin); if (!list.length) return toast('틀린 단어가 아직 없어요');
+  const label = `자주 틀리는 단어 (${freqMin}번 이상)`, n = list.length;
+  const v = await pickCount(label, `${freqMin}번 이상 틀린 단어가 <b>${n}개</b> 있어요. 많이 틀린 단어부터 몇 개 할까요?`, n, 'jv2_freqn');
+  if (!v) return;
+  const pick = list.slice(0, v), lb = `${label} ${pick.length}개`;
+  if (mode === 'card') return startFlash(pick, lb, 'freq');
+  return begin('freq', pick, lb, 'review', false, true);
+}
+$('#freqQuiz').onclick = $('#freqQuiz2').onclick = () => startFreq('quiz');
+$('#freqCardBtn').onclick = $('#freqCard2').onclick = () => startFreq('card');
+
 /* 홈 카드 */
 function renderSrsCard(){
   const list = dueList(), t = today(), over = list.filter(w => stats[w.id].due < t).length;
@@ -1641,7 +1720,7 @@ function renderHome(){
     $('#tLearnSub').textContent = '범위 고르기'; $('#tRevSub').textContent = '-'; $('#tNoteSub').textContent = '-';
   }
   $('#tCardSub').textContent = flashResume('today') || '보고 떠올리기';
-  renderSrsCard(); renderDays();
+  renderSrsCard(); renderFreqCard(); renderDays();
 }
 function renderDays(){
   const box = $('#days'), days = dayList();
