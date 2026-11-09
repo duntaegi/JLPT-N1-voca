@@ -641,7 +641,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v74</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v75</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -1657,6 +1657,8 @@ document.addEventListener('keydown', e => {
   if (document.querySelector('.modal.open') || $('#write').classList.contains('on')) return;
   const k = e.key, inQuiz = $('#quiz').classList.contains('on'), go = fn => { e.preventDefault(); if (e.repeat && !inQuiz) return; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); fn(); };
   if ($('#quiz').classList.contains('on') && $('#qMain').style.display !== 'none'){
+    if (k === 'Tab'){ e.preventDefault(); const bar = $('#quiz .bar'), bh = bar ? bar.getBoundingClientRect().bottom : 0;   // 스페이스바로 내려가는 만큼 위로 올라감 (위쪽 바에 가려지는 부분은 빼 줌)
+      window.scrollBy({top: -Math.max(120, window.innerHeight - bh - 40), behavior: 'smooth'}); return; }
     if (!Q.answered && /^[1-4]$/.test(k)){ const c = Q.cur, g = c && c.combo && Q.pick[0] !== null ? 1 : 0; const b = (g ? $('#opts2') : $('#opts')).children[+k - 1]; if (b) go(() => b.click()); return; }
     if (!Q.answered && k === 'Backspace' && Q.cur && Q.cur.combo){ go(() => { const g = Q.pick[1] !== null ? 1 : 0; Q.pick[g] = null; [...(g ? $('#opts2') : $('#opts')).children].forEach(b => b.classList.remove('picked')); window.scrollTo({top: 0, behavior: 'smooth'}); }); return; }
     if (Q.answered && (k === 'Enter' || k === ' ' || k === 'ArrowRight')){ const nb = $('#nextBtn'); if (nb) go(() => nb.click()); return; }
