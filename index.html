@@ -641,7 +641,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v82</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v83</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -2108,7 +2108,7 @@ function askTypes(init){
     pop.classList.add('open');
   });
 }
-async function begin(key, ws, label, kind, keepOrder, fresh, presetTypes){
+async function begin(key, ws, label, kind, keepOrder, fresh, presetTypes, force){
   if (words.length < 4){ modal('단어가 부족합니다', '4지선다 문제를 만들려면 단어가 4개 이상 필요합니다.', [['확인', 1, 'pri']]); return; }
   if (!fresh && sessions[key]){
     const S = sessions[key];
@@ -2124,7 +2124,7 @@ async function begin(key, ws, label, kind, keepOrder, fresh, presetTypes){
   if (presetTypes !== undefined) types = presetTypes;   // 바로 다시 풀기는 방금 고른 유형을 그대로 씀
   else { const t = await askTypes(); if (!t) return; types = t.includes('rand') ? null : t; }
   const ids = ws.map(w => w.id);
-  sessions[key] = {ids: keepOrder ? ids : shuffle(ids), idx:0, o:0, x:0, wrong:[], label, kind, types, preset: presetTypes !== undefined};
+  sessions[key] = {ids: keepOrder ? ids : shuffle(ids), idx:0, o:0, x:0, wrong:[], label, kind, types, preset: presetTypes !== undefined, force: force || null};
   saveSessions(); runSession(key);
 }
 function runSession(key){
@@ -2301,15 +2301,17 @@ function optsFor(w, a){
   const items = shuffle([{t: w[a], src: w}, ...picks.map(o => ({t: o[a], src: o})), ...texts.slice(picks.length).map(t => ({t, src: null}))]);
   return {opts: items.map(i => i.t), srcs: items.map(i => i.src), correct: items.findIndex(i => i.src === w)};
 }
-function buildQuestion(w, types){
+function buildQuestion(w, types, force){   // force: 틀렸던 형식 {t:'t5'..} 또는 {p,a}. 있으면 그 형식으로 먼저 냄
   const fields = ['kana', 'meaning']; if (w.kanji) fields.unshift('kanji');
   const pairs = [];
   fields.forEach(p => fields.forEach(a => { if (p !== a) pairs.push([p, a]); }));
   // 문제는 복합 유형(보기 두 줄)만 냄. 고른 게 없으면 3가지 모두. 한자가 없는 단어(가타카나 등)는 복합을 만들 수 없어서 그때만 낱개 유형으로 대신함
+  if (force && force.t) types = [force.t];
   const want = (types || []).flatMap(t => t === 'tc' ? ['t5', 't6', 't7'] : [t]).filter(t => COMBO[t]);
   const cids = want.length ? want : ['t5', 't6', 't7'];
   const combos = w.kanji ? cids.map(t => ({p: COMBO[t][0], c: COMBO[t][1]})) : [];
   const order = [...shuffle(combos), ...shuffle(pairs.map(([p, a]) => ({p, a})))];
+  if (force && force.p) order.unshift({p: force.p, a: force.a});
   for (const sp of order){
     if (sp.c){
       const g1 = optsFor(w, sp.c[0]), g2 = g1 && optsFor(w, sp.c[1]);
@@ -2347,7 +2349,7 @@ function nextQuestion(){
   let q = null;
   while (S.idx < S.ids.length){
     const w = byId.get(S.ids[S.idx]);
-    if (w && (q = buildQuestion(w, S.types))) break;
+    if (w && (q = buildQuestion(w, S.types, S.force && S.force[w.id]))) break;
     S.idx++;
   }
   if (!q) return finishSession();
@@ -2451,6 +2453,7 @@ function answer(i){
     }
   } else {
     s.w++; S.x++; s.note = true; s.streak = 0; S.wrong.push(q.w.id);
+    (S.wq = S.wq || {})[q.w.id] = q.combo ? {t: {kanji: 't5', kana: 't6', meaning: 't7'}[q.p]} : {p: q.p, a: q.a};   // 어떤 형식에서 틀렸는지 기억 → 다시 풀기에서 같은 형식으로
     notice = `<div class="notice bad"><span class="ic">📒</span><div><b>${wasNote ? '다시 오답노트에 남았어요' : '오답노트에 저장했어요'}</b><p>2번 연속 맞히면 오답노트에서 빠져요.</p></div></div>`;
   }
   if (S.kind === 'learn' && !s.d) s.d = today();
@@ -2551,7 +2554,7 @@ function finishSession(){
     ${hm.length ? `<button class="next ghost" id="dHard">🤔 헷갈려요 ${hm.length}개만 풀기</button>` : ''}
     ${noteDone ? `<button class="next ghost" id="dHome">🏠 홈으로</button>` : dayCtx ? `<button class="next ghost" id="dHome">${dayLabel(curDay)}로 돌아가기</button><button class="next ghost" id="dGoHome" style="margin-top:0">🏠 홈으로</button>` : `<button class="next ghost" id="dHome">홈으로</button>`}`;
   const keepDay = async k => { if (dayCtx && sessions[k]){ sessions[k].fromDay = true; saveSessions(); } };
-  if (wrong.length) $('#dWrong').onclick = async () => { await begin('retry', wrong.map(id => byId.get(id)), '틀린 단어 다시 풀기', 'note', false, true); keepDay('retry'); };   // 바로 다시 풀 때도 유형을 새로 고름
+  if (wrong.length) $('#dWrong').onclick = async () => { await begin('retry', wrong.map(id => byId.get(id)), '틀린 단어 다시 풀기', 'note', false, true, null, S.wq || null); keepDay('retry'); };   // 바로 다시 풀 때도 유형을 새로 고름
   if (hm.length) $('#dHard').onclick = async () => { await begin('retryH', hm.map(id => byId.get(id)), '헷갈리는 단어 풀기', 'learn', false, true); keepDay('retryH'); };
   $('#dHome').onclick = () => { if (dayCtx && !noteDone){ renderDay(); show('day'); } else goHome(); };
   if ($('#dGoHome')) $('#dGoHome').onclick = goHome;
