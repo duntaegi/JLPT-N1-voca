@@ -641,7 +641,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v83</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v84</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -672,6 +672,24 @@ body.padB .markbar{bottom:var(--padh)}
         <button class="tb card" id="srsCardBtn"><b>카드로 복습</b><small>보고 떠올리기</small></button>
       </div>
       <button class="srslink" onclick="openSrs()">복습 계획 · 간격 보기 ›</button>
+    </div>
+
+    <div class="tcard" id="resumeBox" style="display:none">
+      <div class="th"><b>▶ 풀던 문제가 있어요</b><span class="rng" id="resumeCnt"></span></div>
+      <p class="srsp" id="resumeSub"></p>
+      <div class="tbtns">
+        <button class="tb main" id="resumeGo"><b>이어서 풀기</b><small>멈춘 곳부터</small></button>
+        <button class="tb card" id="resumeDrop"><b>그만두기</b><small>이 기록 지우기</small></button>
+      </div>
+    </div>
+
+    <div class="tcard" id="noteBox">
+      <div class="th"><b>📒 오답노트 (전체 일차)</b><span class="rng" id="noteCnt">0개</span></div>
+      <p class="srsp" id="noteSub"></p>
+      <div class="tbtns">
+        <button class="tb main" id="noteQuiz"><b>문제로 풀기</b><small>모든 일차 오답 모아서</small></button>
+        <button class="tb card" id="noteCardBtn"><b>카드로 보기</b><small>눈으로 익히기</small></button>
+      </div>
     </div>
 
     <div class="tcard" id="freqBox">
@@ -1553,6 +1571,26 @@ async function startFreq(mode){
 $('#freqQuiz').onclick = $('#freqQuiz2').onclick = () => startFreq('quiz');
 $('#freqCardBtn').onclick = $('#freqCard2').onclick = () => startFreq('card');
 
+/* 홈: 풀던 문제 이어서 / 전체 오답노트 */
+const RESUME_KEYS = ['retry', 'retryH', 'allnote'];
+function renderResume(){
+  const k = RESUME_KEYS.find(k => sessions[k] && sessions[k].idx < sessions[k].ids.length), box = $('#resumeBox');
+  box.style.display = k ? '' : 'none'; if (!k) return;
+  const S = sessions[k];
+  $('#resumeCnt').textContent = `${S.idx} / ${S.ids.length}`;
+  $('#resumeSub').textContent = `${S.label} · ${S.ids.length - S.idx}개 남았어요`;
+  $('#resumeGo').onclick = () => runSession(k);
+  $('#resumeDrop').onclick = async () => { if (await modal('그만둘까요?', `${esc(S.label)} 기록을 지워요. 틀린 단어 기록은 그대로예요.`, [['그만두기', 'x'], ['취소', null]])){ delete sessions[k]; saveSessions(); renderResume(); } };
+}
+function renderNoteBox(){
+  const n = words.filter(isNote).length;
+  $('#noteCnt').textContent = n ? n + '개' : '없음';
+  $('#noteSub').textContent = n ? '2번 연속 맞히면 오답노트에서 빠져요' : '오답노트가 비었어요 👍';
+  $('#noteQuiz').disabled = $('#noteCardBtn').disabled = !n;
+}
+$('#noteQuiz').onclick = () => { const l = words.filter(isNote); if (l.length) begin('allnote', l, '전체 오답노트', 'note'); };
+$('#noteCardBtn').onclick = () => { const l = words.filter(isNote); if (l.length) startFlash(l, '전체 오답노트', 'allnote'); };
+
 /* 홈 카드 */
 function renderSrsCard(){
   const list = dueList(), t = today(), over = list.filter(w => stats[w.id].due < t).length;
@@ -1726,7 +1764,7 @@ function renderHome(){
     $('#tLearnSub').textContent = '범위 고르기'; $('#tRevSub').textContent = '-'; $('#tNoteSub').textContent = '-';
   }
   $('#tCardSub').textContent = flashResume('today') || '보고 떠올리기';
-  renderSrsCard(); renderFreqCard(); renderDays();
+  renderResume(); renderSrsCard(); renderNoteBox(); renderFreqCard(); renderDays();
 }
 function renderDays(){
   const box = $('#days'), days = dayList();
@@ -2136,8 +2174,7 @@ function runSession(key){
 function quitQuiz(){
   const S = sessions[Q.key];
   if (curDay && Q.key.startsWith('d')){ renderDay(); show('day'); } else goHome();
-  if (Q.key === 'retry' || Q.key === 'retryH'){ delete sessions[Q.key]; saveSessions(); toast('다시 풀기를 그만뒀어요'); }   // 이 두 가지는 이어서 풀 수 없음
-  else if (S) toast(`${S.idx} / ${S.ids.length}까지 저장했어요. 나중에 이어서 풀 수 있어요`);
+  if (S) toast(`${S.idx} / ${S.ids.length}까지 저장했어요. 나중에 이어서 풀 수 있어요`);
 }
 
 /* ---------- quiz ---------- */
