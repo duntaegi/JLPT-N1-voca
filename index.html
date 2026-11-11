@@ -169,6 +169,7 @@ button:focus-visible{outline:3px solid var(--brown2);outline-offset:2px}
 .notice p{margin:4px 0 0;font-size:15px;line-height:1.5;color:var(--ink)}
 .notice.grad{background:var(--okbg);border-color:var(--ok)} .notice.grad b{color:var(--ok)}
 .notice.half{background:var(--chip);border-color:var(--brown2)} .notice.half b{color:var(--brown2)}
+.notice.bad .nth{color:var(--ng);font-size:1.05em}
 .notice.bad{background:var(--ngbg);border-color:var(--ng)} .notice.bad b{color:var(--ng)}
 .dots{display:inline-flex;gap:5px;margin-left:6px;vertical-align:middle}
 .dots i{width:12px;height:12px;border-radius:50%;border:2px solid currentColor}
@@ -641,7 +642,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v84</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v85</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -2491,7 +2492,7 @@ function answer(i){
   } else {
     s.w++; S.x++; s.note = true; s.streak = 0; S.wrong.push(q.w.id);
     (S.wq = S.wq || {})[q.w.id] = q.combo ? {t: {kanji: 't5', kana: 't6', meaning: 't7'}[q.p]} : {p: q.p, a: q.a};   // 어떤 형식에서 틀렸는지 기억 → 다시 풀기에서 같은 형식으로
-    notice = `<div class="notice bad"><span class="ic">📒</span><div><b>${wasNote ? '다시 오답노트에 남았어요' : '오답노트에 저장했어요'}</b><p>2번 연속 맞히면 오답노트에서 빠져요.</p></div></div>`;
+    notice = `<div class="notice bad"><span class="ic">📒</span><div><b>${wasNote ? '다시 오답노트에 남았어요' : '오답노트에 저장했어요'}</b><p><b class="nth">이 단어 ${s.w}번째 틀림</b> · 2번 연속 맞히면 오답노트에서 빠져요.</p></div></div>`;
   }
   if (S.kind === 'learn' && !s.d) s.d = today();
   s.last = today(); srsTouch(s, ok); logAct(S.label, 'quiz', ok);
