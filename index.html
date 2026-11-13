@@ -642,7 +642,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v85</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v86</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -2578,7 +2578,8 @@ function finishSession(){
   $('#qMain').style.display = 'none';
   const dayCtx = !!(curDay && (key.startsWith('d') || S.fromDay));   // 일차에서 시작한 문제(다시 풀기 포함)면 '일차로 돌아가기'도 보여 줌
   const noteDone = dayCtx && S.kind === 'note' && !dayWords(curDay).some(isNote);   // 오답노트를 다 끝냄(남은 오답 없음) → 홈으로만
-  const noteLeft = (dayCtx && S.kind === 'note' && !wrong.length) ? dayWords(curDay).filter(isNote).length : 0;   // 틀린 게 없을 때만: 남은 오답노트를 바로 이어서 하기 (틀린 게 있으면 '다시 풀기'가 먼저)
+  const allCtx = !dayCtx && S.kind === 'note' && (key === 'allnote' || !!S.fromAll);   // 홈 '전체 오답노트'에서 시작한 경우(다시 풀기 포함)
+  const noteLeft = (S.kind === 'note' && !wrong.length) ? (dayCtx ? dayWords(curDay).filter(isNote).length : allCtx ? words.filter(isNote).length : 0) : 0;   // 틀린 게 없을 때만: 남은 오답노트를 바로 이어서 하기 (틀린 게 있으면 '다시 풀기'가 먼저)
   const d = $('#qDone'); d.style.display = '';
   const icon = {learn:'🌸', review:'📖', note:'🎯'}[S.kind] || '🌸';
   d.innerHTML = `<div class="done"><div class="big">${icon}</div><h3>${esc(S.label)} 완료!</h3><p>${num(tot)}문제</p></div>
@@ -2591,12 +2592,15 @@ function finishSession(){
     ${noteLeft ? `<button class="next" id="dNoteGo">📝 오답노트 이어서 하기 (${noteLeft}개)</button>` : ''}
     ${hm.length ? `<button class="next ghost" id="dHard">🤔 헷갈려요 ${hm.length}개만 풀기</button>` : ''}
     ${noteDone ? `<button class="next ghost" id="dHome">🏠 홈으로</button>` : dayCtx ? `<button class="next ghost" id="dHome">${dayLabel(curDay)}로 돌아가기</button><button class="next ghost" id="dGoHome" style="margin-top:0">🏠 홈으로</button>` : `<button class="next ghost" id="dHome">홈으로</button>`}`;
-  const keepDay = async k => { if (dayCtx && sessions[k]){ sessions[k].fromDay = true; saveSessions(); } };
+  const keepDay = async k => { if (sessions[k]){ if (dayCtx) sessions[k].fromDay = true; if (allCtx) sessions[k].fromAll = true; saveSessions(); } };
   if (wrong.length) $('#dWrong').onclick = async () => { await begin('retry', wrong.map(id => byId.get(id)), '틀린 단어 다시 풀기', 'note', false, true, null, S.wq || null); keepDay('retry'); };   // 바로 다시 풀 때도 유형을 새로 고름
   if (hm.length) $('#dHard').onclick = async () => { await begin('retryH', hm.map(id => byId.get(id)), '헷갈리는 단어 풀기', 'learn', false, true); keepDay('retryH'); };
   $('#dHome').onclick = () => { if (dayCtx && !noteDone){ renderDay(); show('day'); } else goHome(); };
   if ($('#dGoHome')) $('#dGoHome').onclick = goHome;
-  if (noteLeft) $('#dNoteGo').onclick = () => { const dd = curDay, n = dayWords(dd).filter(isNote); if (n.length) begin('d' + dd + 'note', n, `${dayLabel(dd)} 오답노트`, 'note'); };
+  if (noteLeft) $('#dNoteGo').onclick = () => {
+    if (allCtx){ const n = words.filter(isNote); if (n.length) begin('allnote', n, '전체 오답노트', 'note', false, true); return; }
+    const dd = curDay, n = dayWords(dd).filter(isNote); if (n.length) begin('d' + dd + 'note', n, `${dayLabel(dd)} 오답노트`, 'note');
+  };
   sfx('done');
   window.scrollTo(0, 0);
 }
