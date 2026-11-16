@@ -642,7 +642,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v88</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v89</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -2023,7 +2023,7 @@ async function pickChunk(key, ids, title, unans, fresh){
   if ((C.mode || 'mix') !== chunkMode) chunkSwitch(C, key, chunkMode);
   for (;;){
     const r = n - C.pos, quarters = [];
-    [1, 2, 3, 4].forEach(q => { const c = Math.min(r, Math.max(1, Math.ceil(n * q / 4))); if (!quarters.some(x => x.c === c)) quarters.push({c, q}); });
+    [1, 2, 3, 4].forEach(q => { const c = Math.min(r, Math.max(1, Math.ceil(r * q / 4))); if (!quarters.some(x => x.c === c)) quarters.push({c, q}); });   // 남은 개수(r)의 1/4 단위
     if (!quarters.some(x => x.c === r)) quarters.push({c: r, q: 0});
     let cur = Math.min(r, Math.max(1, +get('jv2_chunkn', 25) || 25));
     const nx = byId.get(C.order[C.pos]), num = chunkMode === 'num';
