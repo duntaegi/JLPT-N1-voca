@@ -642,7 +642,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v86</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v87</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -1701,7 +1701,7 @@ document.addEventListener('keydown', e => {
   const k = e.key, inQuiz = $('#quiz').classList.contains('on'), go = fn => { e.preventDefault(); if (e.repeat && !inQuiz) return; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); fn(); };
   if ($('#quiz').classList.contains('on') && $('#qMain').style.display !== 'none'){
     if (k === 'Tab'){ e.preventDefault(); const bar = $('#quiz .bar'), bh = bar ? bar.getBoundingClientRect().bottom : 0;   // 스페이스바로 내려가는 만큼 위로 올라감 (위쪽 바에 가려지는 부분은 빼 줌)
-      window.scrollBy({top: -Math.max(120, window.innerHeight - bh - 40), behavior: 'smooth'}); return; }
+      smoothTo(Math.max(0, window.scrollY - Math.max(120, window.innerHeight - bh - 40)), 300); return; }
     if (!Q.answered && /^[1-4]$/.test(k)){ const c = Q.cur, g = c && c.combo && Q.pick[0] !== null ? 1 : 0; const b = (g ? $('#opts2') : $('#opts')).children[+k - 1]; if (b) go(() => b.click()); return; }
     if (!Q.answered && k === 'Backspace' && Q.cur && Q.cur.combo){ go(() => { const g = Q.pick[1] !== null ? 1 : 0; Q.pick[g] = null; [...(g ? $('#opts2') : $('#opts')).children].forEach(b => b.classList.remove('picked')); window.scrollTo({top: 0, behavior: 'smooth'}); }); return; }
     if (Q.answered && (k === 'Enter' || k === ' ' || k === 'ArrowRight')){ const nb = $('#nextBtn'); if (nb) go(() => nb.click()); return; }
@@ -2458,6 +2458,17 @@ function optSub(q, j){
   const j = [...$(sel).children].indexOf(sp.parentElement), srcs = Q.cur && f(Q.cur), src = srcs && srcs[j];
   if (src) speak(wordSpeech(src));
 }, true));
+/* 직접 만든 부드러운 스크롤: 아이패드 기본 smooth 스크롤은 내려가는 도중 화면이 바뀌면 끊겨서, 매 프레임 위치를 직접 옮김 */
+let scAnim = 0;
+function smoothTo(y, ms){
+  cancelAnimationFrame(scAnim);
+  const y0 = window.scrollY, d = y - y0; ms = ms || 320;
+  if (Math.abs(d) < 2){ window.scrollTo({top: y, behavior: 'instant'}); return; }
+  const t0 = performance.now();
+  const step = t => { const k = Math.min(1, (t - t0) / ms), e = 1 - Math.pow(1 - k, 3); window.scrollTo({top: y0 + d * e, behavior: 'instant'}); if (k < 1) scAnim = requestAnimationFrame(step); };
+  scAnim = requestAnimationFrame(step);
+}
+['touchstart', 'wheel', 'pointerdown'].forEach(ev => window.addEventListener(ev, () => cancelAnimationFrame(scAnim), {passive: true}));
 function pickOpt(g, i){   // 복합 문제: 줄마다 하나씩 고르고, 두 줄을 다 고르면 채점 (고르는 중에는 바꿀 수 있음)
   if (Q.answered) return;
   Q.pick[g] = i;
@@ -2468,7 +2479,7 @@ function pickOpt(g, i){   // 복합 문제: 줄마다 하나씩 고르고, 두 �
     let y = h.getBoundingClientRect().top + window.scrollY - (bar ? bar.offsetHeight : 0) - 12;
     const maxY = $('#quiz').getBoundingClientRect().bottom + window.scrollY - window.innerHeight;   // 화면 끝보다 더 내려가서 아래 빈 공간이 보이지 않게
     y = Math.min(y, maxY);
-    if (y > window.scrollY) window.scrollTo({top: y, behavior: 'smooth'});
+    if (y > window.scrollY) smoothTo(y, 300);
   }
 }
 function answer(i){
@@ -2566,7 +2577,8 @@ function answer(i){
   if (shift) window.scrollTo({top: window.scrollY + shift, behavior: 'instant'});   // 위쪽 보기가 늘어난 만큼 먼저 보정 → 위로 튀었다 내려오는 움직임이 없어짐
   const bar = document.querySelector('#quiz .bar');
   const ty = r.getBoundingClientRect().top + window.scrollY - (bar ? bar.offsetHeight : 0) - 10;
-  window.scrollTo({top: Math.max(0, ty), behavior: 'smooth'});   // 곧바로 한 번에 정답 설명으로
+  const nb = $('#nextBtn').getBoundingClientRect().bottom + window.scrollY - window.innerHeight + 28;   // 틀려서 내용이 길어도 '다음 문제' 버튼이 화면 안에 다 보이게 맨 아래까지
+  smoothTo(Math.max(0, ty, nb), 360);   // 곧바로 한 번에 정답 설명으로
 }
 function finishSession(){
   const key = Q.key, S = sessions[key];
@@ -3249,7 +3261,7 @@ window.addEventListener('resize', () => requestAnimationFrame(padLayout));
 // 위쪽 줄(진행 막대·점수가 있는 문제 화면 등)의 높이가 바뀌면 메모장 위치도 바로 맞춤
 if (window.ResizeObserver){ new ResizeObserver(() => requestAnimationFrame(padLayout)).observe($('#topBtns')); const ro = new ResizeObserver(() => requestAnimationFrame(padLayout)); document.querySelectorAll('.screen .bar, .screen .qtop').forEach(b => ro.observe(b)); }
 const padBarCheck = () => { if (PAD.open && Math.abs(padTopOf(document.querySelector('.screen.on')) - (parseFloat(document.documentElement.style.getPropertyValue('--padtop')) || 0)) > 1) padLayout(); };
-setInterval(padBarCheck, 400); window.addEventListener('scroll', padBarCheck, {passive: true});
+setInterval(padBarCheck, 400);   // 스크롤 때마다 재계산하지 않음 (메모장이 열려 있으면 스크롤이 버벅였음)
 window.addEventListener('orientationchange', () => setTimeout(padLayout, 250));
 // 그리기 (펜 우선 · 펜이 보이면 손바닥 무시)
 const padPt = e => { const r = pCv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.width, e.pointerType === 'pen' ? (e.pressure || .5) : .5]; };
