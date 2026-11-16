@@ -642,7 +642,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v87</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v88</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -1578,8 +1578,10 @@ function renderResume(){
   const k = RESUME_KEYS.find(k => sessions[k] && sessions[k].idx < sessions[k].ids.length), box = $('#resumeBox');
   box.style.display = k ? '' : 'none'; if (!k) return;
   const S = sessions[k];
-  $('#resumeCnt').textContent = `${S.idx} / ${S.ids.length}`;
-  $('#resumeSub').textContent = `${S.label} · ${S.ids.length - S.idx}개 남았어요`;
+  const left = k === 'retry' ? S.ids.slice(S.idx).filter(id => byId.has(id) && isNote(byId.get(id))).length : S.ids.length - S.idx;
+  $('#resumeCnt').textContent = k === 'retry' ? `${left}개 남음` : `${S.idx} / ${S.ids.length}`;
+  $('#resumeSub').textContent = k === 'retry' ? `${S.label} · 아직 안 푼 오답 ${left}개` : `${S.label} · ${left}개 남았어요`;
+  if (!left){ delete sessions[k]; saveSessions(); box.style.display = 'none'; return; }
   $('#resumeGo').onclick = () => runSession(k);
   $('#resumeDrop').onclick = async () => { if (await modal('그만둘까요?', `${esc(S.label)} 기록을 지워요. 틀린 단어 기록은 그대로예요.`, [['그만두기', 'x'], ['취소', null]])){ delete sessions[k]; saveSessions(); renderResume(); } };
 }
@@ -2387,6 +2389,7 @@ function nextQuestion(){
   let q = null;
   while (S.idx < S.ids.length){
     const w = byId.get(S.ids[S.idx]);
+    if (Q.key === 'retry' && w && !isNote(w)){ S.idx++; continue; }   // 그 사이 오답노트에서 졸업한 단어는 건너뜀
     if (w && (q = buildQuestion(w, S.types, S.force && S.force[w.id]))) break;
     S.idx++;
   }
@@ -2584,7 +2587,9 @@ function finishSession(){
   const key = Q.key, S = sessions[key];
   delete sessions[key]; saveSessions();
   const tot = S.o + S.x, rate = tot ? Math.round(S.o / tot * 100) : 0;
-  const wrong = [...new Set(S.wrong)].filter(id => byId.has(id));
+  const wrongAll = [...new Set(S.wrong)].filter(id => byId.has(id));
+  const wrong = wrongAll.filter(id => isNote(byId.get(id)));   // 틀렸어도 그 사이 오답노트에서 졸업(2번 연속 정답)한 단어는 뺌 → '아직 안 푼 오답'만
+  const graduated = wrongAll.length - wrong.length;
   const hm = [...new Set(S.hmarks || [])].filter(id => byId.has(id) && marks[id]);
   $('#qBar').style.width = '100%';
   $('#qMain').style.display = 'none';
@@ -2600,7 +2605,7 @@ function finishSession(){
       <div class="stat"><b style="color:var(--ng)">${S.x}</b><span>틀림</span></div>
       <div class="stat"><b>${rate}%</b><span>정답률</span></div>
     </div>
-    ${wrong.length ? `<button class="next" id="dWrong">다시 볼 ${wrong.length}개 바로 풀기</button>` : ''}
+    ${wrong.length ? `<button class="next" id="dWrong">${graduated ? '📒 아직 안 푼 오답' : '다시 볼'} ${wrong.length}개 바로 풀기</button>${graduated ? `<p class="srsp" style="text-align:center;margin:-4px 0 10px">틀렸다가 그 사이 오답노트에서 졸업한 ${graduated}개는 뺐어요</p>` : ''}` : ''}
     ${noteLeft ? `<button class="next" id="dNoteGo">📝 오답노트 이어서 하기 (${noteLeft}개)</button>` : ''}
     ${hm.length ? `<button class="next ghost" id="dHard">🤔 헷갈려요 ${hm.length}개만 풀기</button>` : ''}
     ${noteDone ? `<button class="next ghost" id="dHome">🏠 홈으로</button>` : dayCtx ? `<button class="next ghost" id="dHome">${dayLabel(curDay)}로 돌아가기</button><button class="next ghost" id="dGoHome" style="margin-top:0">🏠 홈으로</button>` : `<button class="next ghost" id="dHome">홈으로</button>`}`;
