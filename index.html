@@ -642,7 +642,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v89</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v90</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -2595,7 +2595,7 @@ function finishSession(){
   $('#qMain').style.display = 'none';
   const dayCtx = !!(curDay && (key.startsWith('d') || S.fromDay));   // 일차에서 시작한 문제(다시 풀기 포함)면 '일차로 돌아가기'도 보여 줌
   const noteDone = dayCtx && S.kind === 'note' && !dayWords(curDay).some(isNote);   // 오답노트를 다 끝냄(남은 오답 없음) → 홈으로만
-  const allCtx = !dayCtx && S.kind === 'note' && (key === 'allnote' || !!S.fromAll);   // 홈 '전체 오답노트'에서 시작한 경우(다시 풀기 포함)
+  const allCtx = !dayCtx && S.kind === 'note';   // 일차 밖에서 시작한 오답노트·다시 풀기(복습·자주 틀리는 단어·전체 오답노트 등)는 전부 '전체 오답노트'로 이어 줌
   const noteLeft = (S.kind === 'note' && !wrong.length) ? (dayCtx ? dayWords(curDay).filter(isNote).length : allCtx ? words.filter(isNote).length : 0) : 0;   // 틀린 게 없을 때만: 남은 오답노트를 바로 이어서 하기 (틀린 게 있으면 '다시 풀기'가 먼저)
   const d = $('#qDone'); d.style.display = '';
   const icon = {learn:'🌸', review:'📖', note:'🎯'}[S.kind] || '🌸';
