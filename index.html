@@ -642,7 +642,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v90</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v91</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -1624,10 +1624,28 @@ function renderSrs(){
   $('#srsWeek').querySelectorAll('[data-due]').forEach(b => b.onclick = () => showDue(b.dataset.due));
   $('#srsMore').textContent = span === 14 ? '30일까지 보기' : '14일만 보기';
 }
-$('#srsIntSave').onclick = () => {
+function srsRecalc(){   // 이미 잡힌 복습 날짜를 새 간격으로 다시 계산: 마지막으로 본 날 + (현재 단계의 간격)
+  let n = 0;
+  for (const id in stats){
+    const s = stats[id], base = s && (s.last || s.d);
+    if (!s || !s.due || !base) continue;
+    const nd = addDays(base, srsInt[Math.min(s.lv || 0, srsInt.length - 1)]);
+    if (nd !== s.due){ s.due = nd; n++; }
+  }
+  if (n) saveStats();
+  return n;
+}
+$('#srsIntSave').onclick = async () => {
   const arr = $('#srsInt').value.split(/[\s,]+/).filter(Boolean).map(Number);
   if (!arr.length || arr.length > 10 || !arr.every(x => Number.isInteger(x) && x > 0 && x <= 365)){ toast('1~365 사이의 숫자를 쉼표로 나눠서 적어 주세요 (예: 1, 3, 7, 14, 30)'); return; }
-  srsInt = arr; put('jv2_srs', {int: arr}); toast('복습 간격을 바꿨어요. 앞으로 푸는 단어부터 적용돼요'); renderSrs();
+  srsInt = arr; put('jv2_srs', {int: arr});
+  const has = Object.values(stats).some(x => x && x.due);
+  if (has){
+    const v = await modal('이미 잡힌 복습 날짜도 바꿀까요?', `새 간격 <b>${arr.join(', ')}</b>일을 지금 복습 예정인 단어에도 적용해요.<br><small>마지막으로 본 날 + 현재 단계의 새 간격으로 날짜를 다시 계산해요. 오늘·내일 복습 개수가 달라질 수 있어요.</small>`, [['지금 것도 바꾸기', 'all', 'pri'], ['앞으로 푸는 단어만', 'new']]);
+    if (v === 'all'){ const n = srsRecalc(); toast(`복습 간격을 바꿨어요. 잡혀 있던 ${n}개의 날짜도 다시 계산했어요`); }
+    else toast('복습 간격을 바꿨어요. 앞으로 푸는 단어부터 적용돼요');
+  } else toast('복습 간격을 바꿨어요');
+  renderSrs(); renderHome();
 };
 let srsSpan = 14;
 $('#srsMore').onclick = () => { srsSpan = srsSpan === 14 ? 30 : 14; renderSrs(); };
