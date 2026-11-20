@@ -183,7 +183,9 @@ button:focus-visible{outline:3px solid var(--brown2);outline-offset:2px}
 .kh span{font-weight:500;font-size:11px;margin-left:6px;opacity:.85}
 .kn{margin-top:8px;font-size:13px;line-height:1.5;background:var(--chip);color:var(--ink);border-radius:10px;padding:8px 12px}
 .kjs{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:8px}
-.kj{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;gap:12px;align-items:center}
+.kj{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.kj .note{flex-basis:100%;margin-top:-2px;padding-top:8px;border-top:1px dashed var(--line);font-size:12.5px;line-height:1.5;color:var(--sub)}
+.kj .note b{color:var(--beni)}
 .face.back .kj{background:var(--bg);border-color:transparent}
 .kc{flex:none;width:52px;text-align:center;font-size:34px;font-weight:800;line-height:1.1}
 .kc small{display:block;font-size:13px;font-weight:700;color:var(--sub);margin-top:2px}
@@ -659,7 +661,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v97</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v98</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -2494,7 +2496,7 @@ function kanjiCands(ch){
   return out;
 }
 // 단어의 표기(教える)와 읽기(おしえる)를 맞춰 보며, 이 단어에서 각 한자가 어떤 읽기로 쓰였는지 찾기
-function alignKanji(kanji, kana){
+function alignKanji(kanji, kana, chg){
   // 한자 표기가 여러 개(止める/留める)여도 읽기가 여러 개(しゅ/たね)여도 되도록 전부 시도
   const used = {}, kjs = String(kanji).split(/[・\/／]/), rds = String(kana || '').split(/[・\/／]/);
   for (const kj of kjs){
@@ -2519,7 +2521,7 @@ function alignKanji(kanji, kana){
             for (const v of _variants(c.r)){
               if (!rd.startsWith(v, j)) continue;
               const rest = go(ti + 1, j + v.length);
-              if (rest){ res = [{ch: t.k, t: c.t, i: c.i}, ...rest]; break; }
+              if (rest){ res = [{ch: t.k, t: c.t, i: c.i, v, base: c.r, j, nx: rd[j + v.length] || '', pv: rd[j - 1] || ''}, ...rest]; break; }
             }
             if (res) break;
           }
@@ -2528,15 +2530,38 @@ function alignKanji(kanji, kana){
       };
       const res = go(0, 0);
       if (res) res.forEach(x => { const a = (used[x.ch] = used[x.ch] || []); if (!a.includes(x.t + x.i)) a.push(x.t + x.i); });
+      if (res && chg) res.forEach(x => { if (x.v !== x.base){ const a = (chg[x.ch] = chg[x.ch] || []); if (!a.some(y => y.v === x.v && y.base === x.base)) a.push(x); } });
     }
   }
   return used;
+}
+const _ROW = {'か':'か행','き':'か행','く':'か행','け':'か행','こ':'か행','さ':'さ행','し':'さ행','す':'さ행','せ':'さ행','そ':'さ행','た':'た행','ち':'た행','つ':'た행','て':'た행','と':'た행','は':'は행','ひ':'は행','ふ':'は행','へ':'は행','ほ':'は행','ぱ':'ぱ행','ぴ':'ぱ행','ぷ':'ぱ행','ぺ':'ぱ행','ぽ':'ぱ행'};
+const _kata = s => s.replace(/[ぁ-ゖ]/g, c => String.fromCharCode(c.charCodeAt(0) + 96));
+// 읽기가 바뀐 한자(탁음·촉음)에 붙이는 설명
+function changeNote(x){
+  const parts = [], b = x.base, v = x.v, fromTxt = x.t === 'on' ? _kata(b) : b;
+  const gem = v.endsWith('っ') && !b.endsWith('っ'), voiced = v[0] !== b[0];
+  if (voiced){
+    const f = b[0], to = v[0], semi = 'ぱぴぷぺぽ'.includes(to);
+    if (x.pv === 'ん' || x.pv === 'っ'){
+      parts.push(`앞 글자가 「${x.pv}」${x.pv === 'ん' ? '으로' : '로'} 끝나서 「${f}」가 「${to}」로 바뀌었어요. は행은 「${x.pv}」 뒤에서 ${semi ? '반탁음(ぱ행)' : '탁음(ば행)'}이 되기 쉬워요.`);
+    } else if (x.t === 'kun'){
+      parts.push(`훈독끼리 이어 붙인 말이라 뒤쪽 「${f}」가 「${to}」로 탁해졌어요. (연탁)`);
+    } else {
+      parts.push(`단어 중간이라 「${f}」가 「${to}」로 탁해졌어요. (연탁) 음독 단어에서는 흔하지 않아서 이 단어는 통째로 외워 두는 게 좋아요.`);
+    }
+  }
+  if (gem){
+    const last = b[b.length - 1], row = _ROW[x.nx];
+    parts.push(`뒤에 오는 「${x.nx}」${row ? `(${row})` : ''} 소리 때문에 끝의 「${last}」가 작은 「っ」로 줄었어요. (촉음)`);
+  }
+  return `<b>${esc(fromTxt)} → ${esc(v)}</b> · ${parts.join(' ')}`;
 }
 function kanjiGuide(w){
   if (!w || !w.kanji) return '';
   const chars = [...new Set([...w.kanji].filter(_isK))];
   if (!chars.length) return '';
-  const used = alignKanji(w.kanji, w.kana);
+  const chg = {}, used = alignKanji(w.kanji, w.kana, chg);
   const cards = chars.map(ch => {
     const d = KANJI[ch], u = used[ch] || [];
     const uniq = (list, fmt, tp) => {
@@ -2549,7 +2574,7 @@ function kanjiGuide(w){
     const kun = uniq(d[2], r => r.replace(/-/g, ''), 'kun').map(e => { const [a, b] = e.k.split('.'); return chip(`${esc(a)}${b ? `<i>${esc(b)}</i>` : ''}`, e.used); }).join('');
     return `<div class="kj"><div class="kc">${esc(ch)}<small>${esc(d[0])}</small></div><div class="kr">
       <div class="kl"><b>음독</b>${on || '<em>—</em>'}</div>
-      <div class="kl"><b>훈독</b>${kun || '<em>—</em>'}</div></div></div>`;
+      <div class="kl"><b>훈독</b>${kun || '<em>—</em>'}</div></div>${(chg[ch] || []).map(x => `<div class="note">${changeNote(x)}</div>`).join('')}</div>`;
   }).join('');
   return `<div class="kh">한자 읽는 법 <span>색칠된 건 이 단어에서 쓰인 읽기</span></div><div class="kjs">${cards}</div>${Object.keys(used).length ? '' : '<div class="kn">💡 이 단어는 한자별 읽기와 딱 맞지 않는 <b>특수한 읽기</b>예요. 한자 하나씩 나누지 말고 단어째로 외워 주세요.</div>'}`;
 }
