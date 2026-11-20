@@ -191,9 +191,10 @@ button:focus-visible{outline:3px solid var(--brown2);outline-offset:2px}
 .kl b{font-size:11px;color:var(--sub);width:34px;flex:none}
 .kl em{color:var(--sub);font-style:normal}
 .kv{font-size:15px;background:var(--chip);color:var(--ink);border-radius:7px;padding:2px 8px;white-space:nowrap}
-.kv i{font-style:normal;opacity:.55}
+.kv i{font-style:normal}
+.kv i::before{content:"·";margin:0 2px;opacity:.6}
 .kv.used{background:var(--cta);color:var(--oncta);font-weight:800}
-.kv.used i{opacity:.7}
+
 .exh{font-size:13px;font-weight:700;color:var(--sub);margin:18px 4px 8px}
 .ex{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start}
 
@@ -657,7 +658,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v94</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v96</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
