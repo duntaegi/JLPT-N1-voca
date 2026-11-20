@@ -653,6 +653,16 @@ body.padR .mark{right:var(--padw)}   /* 정답 ○/✕ 표시는 메모장을 �
 body.padB .mark{bottom:var(--padh)}
 body.padB .wrap{padding-bottom:calc(16px + var(--padh))}
 body.padB .markbar{bottom:var(--padh)}
+/* ---- 동기화 상태 칩 (홈 머리말) ---- */
+.hsub{display:flex;align-items:center;gap:8px;margin-top:4px}
+.hsub p{margin:0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.schip{flex:none;display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:99px;background:var(--paper);color:var(--ink);border:1.5px solid var(--line);font-size:12.5px;font-weight:700;white-space:nowrap}
+.schip:active{transform:translateY(1px)}
+.schip i{width:9px;height:9px;border-radius:50%;background:var(--sub);flex:none}
+.schip.ok{border-color:var(--ok)} .schip.ok i{background:var(--ok)}
+.schip.busy i{background:var(--cta);animation:schipPulse 1s ease-in-out infinite}
+.schip.bad{border-color:var(--ng)} .schip.bad i{background:var(--ng)}
+@keyframes schipPulse{50%{opacity:.25}}
 /* ---- 폰 화면 다듬기 (v101) ---- */
 .lset summary{list-style:none;cursor:pointer;margin-top:14px;padding:14px;border:2px solid var(--line);border-radius:12px;background:var(--paper);color:var(--sub);font-size:14px;font-weight:700;text-align:center}
 .lset summary::-webkit-details-marker{display:none}
@@ -682,7 +692,10 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v101</span></p>
+    <div class="hsub">
+      <p><span id="appVer">v102</span> · 4지선다 · 카드 · 손글씨로 외우는 N1 단어</p>
+      <button type="button" id="syncChip" class="schip off" onclick="openSync()" aria-live="polite" aria-label="기기 동기화 상태"><i></i><span id="syncChipTxt">동기화 꺼짐</span></button>
+    </div>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -3533,7 +3546,21 @@ function syncStatusText(){
   if (SY.last){ const d = new Date(SY.last); return `켜짐 · ${pad2(d.getHours())}:${pad2(d.getMinutes())}에 맞춤`; }
   return '켜짐';
 }
-function syncStatus(){ const b = $('#syncBtn'); if (b) b.textContent = '기기 동기화 · ' + syncStatusText(); }
+/* 홈 머리말의 칩: 동기화가 됐는지 한눈에 (초록=이 기기 기록이 서버에 다 올라감, 파랑=진행 중, 빨강=안 됨, 회색=꺼짐) */
+function syncChipState(){
+  if (!SY || !SY.on) return ['off', '동기화 꺼짐'];
+  if (!navigator.onLine) return ['bad', '오프라인'];
+  if (SY.err === 'permission-denied') return ['bad', '동기화 거절됨'];
+  if (SY.err) return ['bad', '동기화 안 됨'];
+  if (!SY.ready) return ['busy', '연결 중…'];
+  if (SY.busy || syPending()) return ['busy', '동기화 중…'];
+  const d = SY.last ? new Date(SY.last) : null;
+  return ['ok', '동기화 완료' + (d ? ` ${pad2(d.getHours())}:${pad2(d.getMinutes())}` : '')];
+}
+function syncStatus(){
+  const b = $('#syncBtn'); if (b) b.textContent = '기기 동기화 · ' + syncStatusText();
+  const c = $('#syncChip'); if (c){ const [cls, txt] = syncChipState(); c.className = 'schip ' + cls; $('#syncChipTxt').textContent = txt; }
+}
 async function openSync(){
   if (SY.on){
     const v = await modal('기기 동기화', `동기화 코드<br><b style="font-size:20px;letter-spacing:1px;color:var(--ink);user-select:all">${syFmt(SY.code)}</b><br>다른 기기에서 '코드 입력'을 누르고 이 코드를 넣으면 같은 기록을 써요. 코드를 아는 사람은 기록을 볼 수 있으니 남에게 알려 주지 마세요.<br><br>상태: ${esc(syncStatusText())}`,
@@ -3571,7 +3598,8 @@ function syncInit(){
   if (!SY.on) return;
   syncScan(); syncStart();
 }
-window.addEventListener('online', () => { if (SY && SY.on){ if (!SY.db) syncStart(); else syncPushSoon(); } });
+window.addEventListener('online', () => { syncStatus(); if (SY && SY.on){ if (!SY.db) syncStart(); else syncPushSoon(); } });
+window.addEventListener('offline', () => syncStatus());
 window.addEventListener('pagehide', () => { if (SY && SY.on) syncScan(); });
 document.addEventListener('visibilitychange', () => { if (!SY || !SY.on) return; if (document.visibilityState === 'hidden') syncScan(); else if (!SY.db) syncStart(); });
 
