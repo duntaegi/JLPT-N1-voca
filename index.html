@@ -181,6 +181,7 @@ button:focus-visible{outline:3px solid var(--brown2);outline-offset:2px}
 .full .wm{font-size:16px;margin-top:6px}
 .kh{font-size:13px;font-weight:700;color:var(--sub);margin:16px 4px 8px}
 .kh span{font-weight:500;font-size:11px;margin-left:6px;opacity:.85}
+.kn{margin-top:8px;font-size:13px;line-height:1.5;background:var(--chip);color:var(--ink);border-radius:10px;padding:8px 12px}
 .kjs{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:8px}
 .kj{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;gap:12px;align-items:center}
 .face.back .kj{background:var(--bg);border-color:transparent}
@@ -658,7 +659,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v96</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v97</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -2550,7 +2551,7 @@ function kanjiGuide(w){
       <div class="kl"><b>음독</b>${on || '<em>—</em>'}</div>
       <div class="kl"><b>훈독</b>${kun || '<em>—</em>'}</div></div></div>`;
   }).join('');
-  return `<div class="kh">한자 읽는 법 <span>색칠된 건 이 단어에서 쓰인 읽기</span></div><div class="kjs">${cards}</div>`;
+  return `<div class="kh">한자 읽는 법 <span>색칠된 건 이 단어에서 쓰인 읽기</span></div><div class="kjs">${cards}</div>${Object.keys(used).length ? '' : '<div class="kn">💡 이 단어는 한자별 읽기와 딱 맞지 않는 <b>특수한 읽기</b>예요. 한자 하나씩 나누지 말고 단어째로 외워 주세요.</div>'}`;
 }
 function highlight(jp, w){
   const s = esc(jp);
