@@ -47,7 +47,7 @@ html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);
   font-family:"Noto Sans JP","Noto Sans CJK JP","Noto Sans KR",sans-serif;-webkit-user-select:none;user-select:none}
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 button:focus-visible{outline:3px solid var(--brown2);outline-offset:2px}
-.screen{display:none;min-height:100vh;flex-direction:column}
+.screen{display:none;min-height:100vh;min-height:100dvh;flex-direction:column}   /* 아이폰 사파리는 주소창 때문에 100vh가 실제 화면보다 커서 dvh를 씀 */
 .screen.on{display:flex}
 .bar{background:var(--bar);color:var(--onbar);padding:12px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
 .bar h2{margin:0;font-size:17px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -505,7 +505,7 @@ html.wlock,html.wlock body{overflow:hidden}
 .dc .db{position:absolute;top:6px;left:6px;min-width:18px;height:18px;border-radius:9px;background:var(--cta);color:var(--oncta);font-size:11px;font-weight:700;display:grid;place-items:center;padding:0 5px}
 /* ---- 타이머 칩 · 캘린더 · 나눠 풀기 ---- */
 .bar{padding-right:var(--topw,104px)}   /* 오른쪽 위 버튼 묶음(메모장·타이머) 폭만큼 비워 둠 — 폭은 JS가 실제로 재서 넣음 */
-.hero{padding-right:var(--topw,110px)}
+.hero h1{padding-right:var(--topw,110px)}   /* 타이머 칩과 겹치는 건 제목 줄뿐이라 제목만 비우고, 진도 막대는 끝까지 씀 */
 #timerPill{flex:none;white-space:nowrap;height:34px;padding:0 12px;border-radius:99px;background:var(--paper);color:var(--ink);border:2px solid var(--cta);font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:5px;box-shadow:0 2px 6px rgba(15,53,80,.18)}
 #modal{z-index:31}
 .freqchips{display:flex;gap:6px;flex-wrap:wrap}
@@ -653,6 +653,27 @@ body.padR .mark{right:var(--padw)}   /* 정답 ○/✕ 표시는 메모장을 �
 body.padB .mark{bottom:var(--padh)}
 body.padB .wrap{padding-bottom:calc(16px + var(--padh))}
 body.padB .markbar{bottom:var(--padh)}
+/* ---- 폰 화면 다듬기 (v101) ---- */
+.lset summary{list-style:none;cursor:pointer;margin-top:14px;padding:14px;border:2px solid var(--line);border-radius:12px;background:var(--paper);color:var(--sub);font-size:14px;font-weight:700;text-align:center}
+.lset summary::-webkit-details-marker{display:none}
+.lset[open] summary{color:var(--ink)}
+.lset .sec:first-of-type{margin-top:16px}
+@media (max-width:520px){
+  /* 머리말: 화면의 절반을 차지하던 것을 작게 */
+  .hero{padding:14px 16px 14px}
+  .hero h1{font-size:26px;line-height:1.25;padding-top:2px}
+  .hero p{font-size:12.5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prog{margin-top:12px}
+  .prog .row{font-size:13px}
+  .prog .row b{font-size:19px}
+  .track{height:8px;margin-top:6px}
+  .stats{margin-top:12px}
+  .stat{padding:10px 4px}
+  .stat b{font-size:20px}
+  /* 카드 뒤집기: 카드가 화면보다 길어도 알았어요·몰랐어요 버튼은 항상 화면 아래에 보이게 */
+  .fbtns{position:sticky;bottom:0;z-index:3;margin:10px -16px 0;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));background:linear-gradient(to bottom,transparent,var(--bg) 22px)}
+  .face{min-height:300px}
+}
 </style>
 </head>
 <body>
@@ -661,7 +682,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v99</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v101</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -929,21 +950,24 @@ body.padB .markbar{bottom:var(--padh)}
     <div class="lhead"><span class="cnt" id="cnt"></span>
       <span class="legend"><b class="ok">○</b> 맞힌 횟수 · <b class="ng">✕</b> 틀린 횟수 · <span class="tag d">학습함</span> 한 번 이상 푼 단어 · <span class="tag n">오답</span> 오답노트에 있는 단어</span></div>
     <div id="items"></div>
-    <div class="sec">기기 동기화</div>
-    <div class="danger" style="margin-top:0">
-      <button id="syncBtn" onclick="openSync()">기기 동기화 · 꺼짐</button>
-    </div>
-    <div class="sec">백업</div>
-    <div class="danger" style="margin-top:0">
-      <button onclick="exportBackup()">백업 파일 저장</button>
-      <button onclick="$('#bfile').click()">백업에서 복원</button>
-    </div>
-    <input type="file" id="bfile" accept=".json,application/json">
-    <div class="sec">초기화</div>
-    <div class="danger" style="margin-top:0">
-      <button onclick="resetStats()">학습 기록 초기화</button>
-      <button onclick="deleteAll()">단어 전체 삭제</button>
-    </div>
+    <details class="lset" id="lset">
+      <summary>⚙️ 기기 동기화 · 백업 · 초기화</summary>
+      <div class="sec">기기 동기화</div>
+      <div class="danger" style="margin-top:0">
+        <button id="syncBtn" onclick="openSync()">기기 동기화 · 꺼짐</button>
+      </div>
+      <div class="sec">백업</div>
+      <div class="danger" style="margin-top:0">
+        <button onclick="exportBackup()">백업 파일 저장</button>
+        <button onclick="$('#bfile').click()">백업에서 복원</button>
+      </div>
+      <input type="file" id="bfile" accept=".json,application/json">
+      <div class="sec">초기화</div>
+      <div class="danger" style="margin-top:0">
+        <button onclick="resetStats()">학습 기록 초기화</button>
+        <button onclick="deleteAll()">단어 전체 삭제</button>
+      </div>
+    </details>
   </div>
 </section>
 
@@ -1795,7 +1819,7 @@ function renderHome(){
   }
   $('#pDone').textContent = num(done); $('#pTotal').textContent = num(words.length);
   $('#pBar').style.width = words.length ? (done / words.length * 100) + '%' : '0';
-  $('#sToday').textContent = td; $('#sNote').textContent = note;
+  $('#sToday').textContent = num(td); $('#sNote').textContent = num(note);
   $('#sRate').textContent = (c + wr) ? Math.round(c / (c + wr) * 100) + '%' : '-';
   if (range){
     const ws = rangeWords(range);
@@ -2905,7 +2929,7 @@ function finishFlash(){
 
 /* ---------- list ---------- */
 function openList(){
-  $('#q').value = '';
+  $('#q').value = ''; $('#lset').open = false;
   $('#lDay').innerHTML = '<option value="">전체 일차</option>' + dayList().filter(d => dayWords(d).length).map(d => `<option value="${d}">${dayLabel(d)}</option>`).join('');
   renderList(); show('list'); fitList();
 }
@@ -2920,6 +2944,7 @@ function fitList(){
   if (over > 0) box.style.height = Math.max(240, box.offsetHeight - over) + 'px';
 }
 window.addEventListener('resize', () => requestAnimationFrame(fitList));
+$('#lset').addEventListener('toggle', () => { fitList(); if ($('#lset').open) setTimeout(() => $('#lset').scrollIntoView({block: 'start', behavior: 'smooth'}), 60); });
 let listJob = 0;
 function listRow(w){
   const s = stats[w.id] || {c:0, w:0};
