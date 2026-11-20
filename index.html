@@ -181,10 +181,10 @@ button:focus-visible{outline:3px solid var(--brown2);outline-offset:2px}
 .full .wm{font-size:16px;margin-top:6px}
 .kh{font-size:13px;font-weight:700;color:var(--sub);margin:16px 4px 8px}
 .kh span{font-weight:500;font-size:11px;margin-left:6px;opacity:.85}
-.kjs{display:flex;flex-direction:column;gap:8px}
+.kjs{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:8px}
 .kj{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;gap:12px;align-items:center}
 .face.back .kj{background:var(--bg);border-color:transparent}
-.kc{flex:none;width:58px;text-align:center;font-size:34px;font-weight:800;line-height:1.1}
+.kc{flex:none;width:52px;text-align:center;font-size:34px;font-weight:800;line-height:1.1}
 .kc small{display:block;font-size:13px;font-weight:700;color:var(--sub);margin-top:2px}
 .kr{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
 .kl{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
@@ -657,7 +657,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v92</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v94</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -2486,7 +2486,7 @@ function kanjiCands(ch){
   d[1].forEach((r, i) => { const h = _hira(r.replace(/-/g, '')); if (h) out.push({t: 'on', i, r: h}); });
   const I = {'る':'り','く':'き','ぐ':'ぎ','す':'し','つ':'ち','ぬ':'に','ぶ':'び','む':'み','う':'い'};
   const kn = d[2].map(r => r.replace(/-/g, '').split('.'));
-  kn.forEach(([h], i) => { if (h) out.push({t: 'kun', i, r: h}); });                                   // 어간 그대로 (と)
+  kn.forEach(([h, b], i) => { if (h) out.push({t: 'kun', i, r: h, b: b || ''}); });                                   // 어간 그대로 (と)
   kn.forEach(([h, b], i) => { if (h && b) out.push({t: 'kun', i, r: h + b}); });                      // 통째로 (ひとり)
   kn.forEach(([h, b], i) => { if (h && b && I[b[0]]) out.push({t: 'kun', i, r: h + I[b[0]]}); });     // 활용형 (とり・ひき)
   return out;
@@ -2510,7 +2510,10 @@ function alignKanji(kanji, kana){
         let res = null; const t = toks[ti];
         if (t.lit){ if (rd[j] === t.lit) res = go(ti + 1, j + 1); }
         else {
-          for (const c of kanjiCands(t.k)){
+          let tail = ''; for (let q = ti + 1; q < toks.length && toks[q].lit; q++) tail += toks[q].lit;
+          const cs = kanjiCands(t.k).map((c, n) => ({c, n, m: c.b && tail.startsWith(_hira(c.b)) ? 0 : 1}));
+          cs.sort((x, y) => x.m - y.m || x.n - y.n);
+          for (const {c} of cs){
             for (const v of _variants(c.r)){
               if (!rd.startsWith(v, j)) continue;
               const rest = go(ti + 1, j + v.length);
@@ -2534,11 +2537,14 @@ function kanjiGuide(w){
   const used = alignKanji(w.kanji, w.kana);
   const cards = chars.map(ch => {
     const d = KANJI[ch], u = used[ch] || [];
-    const on = d[1].map((r, i) => `<span class="kv${u.includes('on' + i) ? ' used' : ''}">${esc(r.replace(/-/g, ''))}</span>`).join('');
-    const kun = d[2].map((r, i) => {
-      const [a, b] = r.replace(/-/g, '').split('.');
-      return `<span class="kv${u.includes('kun' + i) ? ' used' : ''}">${esc(a)}${b ? `<i>${esc(b)}</i>` : ''}</span>`;
-    }).join('');
+    const uniq = (list, fmt, tp) => {
+      const m = new Map();
+      list.forEach((r, i) => { const k = fmt(r); const e = m.get(k) || {k, used: false}; if (u.includes(tp + i)) e.used = true; m.set(k, e); });
+      return [...m.values()];
+    };
+    const chip = (html, used) => `<span class="kv${used ? ' used' : ''}">${html}</span>`;
+    const on = uniq(d[1], r => r.replace(/-/g, ''), 'on').map(e => chip(esc(e.k), e.used)).join('');
+    const kun = uniq(d[2], r => r.replace(/-/g, ''), 'kun').map(e => { const [a, b] = e.k.split('.'); return chip(`${esc(a)}${b ? `<i>${esc(b)}</i>` : ''}`, e.used); }).join('');
     return `<div class="kj"><div class="kc">${esc(ch)}<small>${esc(d[0])}</small></div><div class="kr">
       <div class="kl"><b>음독</b>${on || '<em>—</em>'}</div>
       <div class="kl"><b>훈독</b>${kun || '<em>—</em>'}</div></div></div>`;
