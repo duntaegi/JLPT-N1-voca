@@ -661,7 +661,7 @@ body.padB .markbar{bottom:var(--padh)}
 <section class="screen on" id="home">
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
-    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v98</span></p>
+    <p>4지선다 · 카드 · 손글씨로 외우는 N1 단어 · <span id="appVer">v99</span></p>
     <div class="prog">
       <div class="row"><span>전체 진도</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="track"><i id="pBar" style="width:0"></i></div>
@@ -2530,7 +2530,7 @@ function alignKanji(kanji, kana, chg){
       };
       const res = go(0, 0);
       if (res) res.forEach(x => { const a = (used[x.ch] = used[x.ch] || []); if (!a.includes(x.t + x.i)) a.push(x.t + x.i); });
-      if (res && chg) res.forEach(x => { if (x.v !== x.base){ const a = (chg[x.ch] = chg[x.ch] || []); if (!a.some(y => y.v === x.v && y.base === x.base)) a.push(x); } });
+      if (res && chg) res.forEach(x => { if (x.v !== x.base || (x.t === 'on' && x.v.endsWith('っ') && x.nx)){ const a = (chg[x.ch] = chg[x.ch] || []); if (!a.some(y => y.v === x.v && y.base === x.base)) a.push(x); } });
     }
   }
   return used;
@@ -2541,6 +2541,10 @@ const _kata = s => s.replace(/[ぁ-ゖ]/g, c => String.fromCharCode(c.charCodeAt
 function changeNote(x){
   const parts = [], b = x.base, v = x.v, fromTxt = x.t === 'on' ? _kata(b) : b;
   const gem = v.endsWith('っ') && !b.endsWith('っ'), voiced = v[0] !== b[0];
+  if (v === b){   // 사전에 이미 「ガッ」처럼 올라 있는 촉음 읽기
+    const row = _ROW[x.nx];
+    return `<b>${esc(_kata(v))}</b> · 끝이 작은 「っ」로 닫히는 읽기예요. (촉음) 뒤에 오는 「${x.nx}」${row ? `(${row})` : ''} 소리와 이어지면서 이 형태로 읽어요.`;
+  }
   if (voiced){
     const f = b[0], to = v[0], semi = 'ぱぴぷぺぽ'.includes(to);
     if (x.pv === 'ん' || x.pv === 'っ'){
