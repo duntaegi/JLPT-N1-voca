@@ -1,5 +1,5 @@
 // 오프라인 사용을 위한 캐시. 앱을 수정하면 VERSION 숫자를 올리세요.
-const VERSION = 'jpvocab-v99-sokuon';
+const VERSION = 'jpvocab-v100-sync';
 const FILES = ['./', './index.html', './xlsx.full.min.js', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -11,11 +11,14 @@ self.addEventListener('activate', e => {
 });
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
+  // 동기화 서버(Firestore) 통신은 저장하지 않고 그대로 보냄
+  if (url.hostname.endsWith('googleapis.com') || url.hostname.endsWith('firebaseio.com')) return;
   e.respondWith(
     caches.match(e.request, {ignoreSearch: true}).then(hit => hit || fetch(e.request).then(res => {
       const copy = res.clone();
-      caches.open(VERSION).then(c => c.put(e.request, copy));
+      if (res.ok) caches.open(VERSION).then(c => c.put(e.request, copy));
       return res;
-    }).catch(() => caches.match('./index.html')))
+    }).catch(() => url.origin === location.origin ? caches.match('./index.html') : Response.error()))
   );
 });

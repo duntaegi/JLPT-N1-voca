@@ -727,7 +727,7 @@ body.padB .markbar{bottom:var(--padh)}
 
     <div class="menu menu3" style="margin-top:24px;margin-bottom:28px">
       <button class="mbtn" onclick="openList()">
-        <span class="k">覧</span><span class="t"><b>단어 목록</b><small>검색, 삭제, 백업</small></span>
+        <span class="k">覧</span><span class="t"><b>단어 목록</b><small>검색, 백업, 동기화</small></span>
       </button>
       <button class="mbtn" onclick="exportExcel()">
         <span class="k">⇩</span><span class="t"><b>엑셀 받기</b><small>전체 단어장 받기</small></span>
@@ -929,6 +929,10 @@ body.padB .markbar{bottom:var(--padh)}
     <div class="lhead"><span class="cnt" id="cnt"></span>
       <span class="legend"><b class="ok">○</b> 맞힌 횟수 · <b class="ng">✕</b> 틀린 횟수 · <span class="tag d">학습함</span> 한 번 이상 푼 단어 · <span class="tag n">오답</span> 오답노트에 있는 단어</span></div>
     <div id="items"></div>
+    <div class="sec">기기 동기화</div>
+    <div class="danger" style="margin-top:0">
+      <button id="syncBtn" onclick="openSync()">기기 동기화 · 꺼짐</button>
+    </div>
     <div class="sec">백업</div>
     <div class="danger" style="margin-top:0">
       <button onclick="exportBackup()">백업 파일 저장</button>
@@ -1029,7 +1033,7 @@ function flushPut(){
   pendingPut.clear();
 }
 function get(k, d){ if (pendingPut.has(k)) return JSON.parse(JSON.stringify(pendingPut.get(k))); try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch(e){ return d; } }
-function put(k, v){ pendingPut.set(k, v); if (!putT) putT = setTimeout(flushPut, 400); }
+function put(k, v){ pendingPut.set(k, v); if (!putT) putT = setTimeout(flushPut, 400); syncTouch(k); }
 window.addEventListener('pagehide', flushPut);
 window.addEventListener('beforeunload', flushPut);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPut(); });
@@ -3312,8 +3316,243 @@ let wRT; window.addEventListener('resize', () => { cancelAnimationFrame(wRT); wR
 // 사파리는 user-scalable=no를 무시해서 따로 막음. 이미 확대된 상태라면 축소는 되도록 둠
 ['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => { if (!window.visualViewport || visualViewport.scale <= 1.01) e.preventDefault(); }, {passive: false}));
 document.addEventListener('dblclick', e => e.preventDefault(), {passive: false});
+/* ---------- 기기 동기화 (Firebase Firestore) ---------- */
+/* 아이패드와 폰에 같은 '동기화 코드'를 넣으면 같은 학습 기록을 써요.
+   기록은 지금처럼 기기 안에 두고, 바뀐 항목만 서버에 올리고 받아요.
+   같은 단어를 양쪽에서 바꿨다면 더 나중에 바꾼 쪽을 남겨요. 인터넷이 없으면 모아 두었다가 연결되면 올려요. */
+const FB_CONFIG = {
+  apiKey: 'AIzaSyApjJJJ9Qlk5GX8M5IRdPmSScJC32NByUg',
+  authDomain: 'study-sync-3b8da.firebaseapp.com',
+  projectId: 'study-sync-3b8da',
+  storageBucket: 'study-sync-3b8da.firebasestorage.app',
+  messagingSenderId: '749575887157',
+  appId: '1:749575887157:web:a1e93170139f6f2a66547c'
+};
+const FB_SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+const SY_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // 헷갈리는 O·0·I·1은 뺌
+const SY_RE = /^[A-HJ-NP-Z2-9]{20}$/;
+const wordDoc = k => 'w' + (parseInt(k, 10) || 0);   // 단어 id는 '일차|읽기|한자' → 일차별 문서에 나눠 담음
+const plainSet = o => (k, v) => { const m = o(); if (v === undefined) delete m[k]; else m[k] = v; };
+/* 동기화하는 기록들. get: {키: 값} 모양으로 꺼냄, set: 키 하나를 바꿈(undefined면 지움), first: 처음 켤 때 쓰는 기준 시각 */
+const SY_TABLES = {
+  stats: {doc: wordDoc, get: () => stats, set: plainSet(() => stats), save: () => saveStats(),
+          first: (k, v) => { const d = v && (v.last || v.d); const ms = d ? keyToDate(d).getTime() : 0; return ms > 0 ? ms : 1; }},
+  marks: {doc: wordDoc, get: () => marks, set: plainSet(() => marks), save: () => saveMarks()},
+  edits: {doc: wordDoc, get: () => edits, save: () => { saveEdits(); saveWords(); },
+          set: (k, v) => { const w = byId.get(k), old = edits[k]; if (v === undefined){ delete edits[k]; if (w && old) w.meaning = old.o; } else { edits[k] = v; if (w && v.m != null) w.meaning = v.m; } }},
+  rounds: {doc: () => 'meta', get: () => rounds, set: plainSet(() => rounds), save: () => saveRounds()},
+  acts: {doc: () => 'acts', save: () => saveActs(), first: (k, v) => (v && v.t1) || 1,
+         get: () => { const m = {}; for (const d in acts) for (const l in acts[d]) m[d + '§' + l] = acts[d][l]; return m; },
+         set: (k, v) => { const i = k.indexOf('§'), d = k.slice(0, i), l = k.slice(i + 1); if (v === undefined){ if (acts[d]){ delete acts[d][l]; if (!Object.keys(acts[d]).length) delete acts[d]; } } else (acts[d] || (acts[d] = {}))[l] = v; }},
+  log: {doc: () => 'log', save: () => saveLog(), first: (k, v) => typeof v === 'number' ? v : 1,
+        get: () => { const m = {}; studyLog.forEach(x => { m[String(x.s)] = x.e; }); return m; },
+        set: (k, v) => { const s = +k; studyLog = studyLog.filter(x => x.s !== s); if (v !== undefined) studyLog.push({s, e: v}); studyLog.sort((a, b) => a.s - b.s); }}
+};
+const SY_KEYS = new Set(['jv2_stats', 'jv2_marks', 'jv2_edits', 'jv2_rounds', 'jv2_act', 'jv2_log']);
+var SY = null;   // var: put()이 이 코드보다 먼저 불려도 오류가 나지 않게
+function syHash(s){   // 바뀌었는지만 보면 되므로 짧은 해시로 저장 (cyrb53)
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < s.length; i++){ const c = s.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+const syFmt = c => c.replace(/(.{5})(?=.)/g, '$1-');
+function syNewCode(){ const u = new Uint32Array(20); crypto.getRandomValues(u); return [...u].map(x => SY_ABC[x % 32]).join(''); }
+function sySaveState(){
+  if (!SY) return;
+  try {
+    localStorage.setItem('jv2_sync', JSON.stringify({on: SY.on, code: SY.code}));
+    localStorage.setItem('jv2_syncst', JSON.stringify({base: SY.base, stamp: SY.stamp, dirty: SY.dirty}));
+  } catch(e){}
+}
+function syncTouch(k){
+  if (!SY || !SY.on || !SY_KEYS.has(k)) return;
+  clearTimeout(SY.scanT); SY.scanT = setTimeout(syncScan, 1500);
+}
+const syT = (o, t) => o[t] || (o[t] = {});
+/* 지난번과 달라진 항목을 찾아서 '보낼 목록'에 넣음 */
+function syncScan(){
+  if (!SY || !SY.on) return 0;
+  clearTimeout(SY.scanT);
+  const now = Date.now(); let n = 0;
+  for (const t in SY_TABLES){
+    const T = SY_TABLES[t], cur = T.get() || {}, base = syT(SY.base, t), stp = syT(SY.stamp, t), dirty = syT(SY.dirty, t);
+    for (const k in cur){
+      const h = syHash(JSON.stringify(cur[k]));
+      if (base[k] === h) continue;
+      base[k] = h; dirty[k] = 1; n++;
+      stp[k] = SY.fresh ? (T.first ? T.first(k, cur[k]) : 1) : Math.max(now, (stp[k] || 0) + 1);
+    }
+    for (const k in base) if (!(k in cur)){ delete base[k]; dirty[k] = 1; n++; stp[k] = Math.max(now, (stp[k] || 0) + 1); }
+  }
+  SY.fresh = false;
+  if (n){ sySaveState(); syncPushSoon(); syncStatus(); }
+  return n;
+}
+/* 서버에서 받은 문서를 기기 기록과 합침: 항목마다 더 나중에 바뀐 쪽을 남김 */
+function syncMerge(list){
+  syncScan();
+  const changed = new Set();
+  for (const data of list) for (const t in data){
+    const T = SY_TABLES[t], m = data[t]; if (!T || !m || typeof m !== 'object') continue;
+    const base = syT(SY.base, t), stp = syT(SY.stamp, t), dirty = syT(SY.dirty, t);
+    for (const k in m){
+      const e = m[k]; if (!e || typeof e.t !== 'number') continue;
+      const rv = typeof e.v === 'string' ? e.v : null, rh = rv === null ? null : syHash(rv);
+      const lh = base[k] === undefined ? null : base[k], lt = stp[k] || 0;
+      if (rh === lh){ if (e.t >= lt){ stp[k] = e.t; delete dirty[k]; } continue; }
+      if (e.t > lt || (e.t === lt && String(rh) > String(lh))){
+        let v; if (rv !== null){ try { v = JSON.parse(rv); } catch(err){ continue; } }
+        T.set(k, v);
+        if (rh === null) delete base[k]; else base[k] = rh;
+        stp[k] = e.t; delete dirty[k]; changed.add(t);
+      } else dirty[k] = 1;   // 이 기기 쪽이 더 최신이면 다시 올림
+    }
+  }
+  changed.forEach(t => SY_TABLES[t].save());
+  sySaveState();
+  if (changed.size) syncRefresh();
+  syncPushSoon();
+  return changed.size;
+}
+function syncRefresh(){   // 다른 기기에서 바뀐 기록이 들어오면 보고 있는 화면만 다시 그림 (문제 푸는 중에는 건드리지 않음)
+  try {
+    if ($('#home').classList.contains('on')) renderHome();
+    else if ($('#list').classList.contains('on')) renderList();
+  } catch(e){}
+}
+function syncPushSoon(){ if (!SY || !SY.on) return; clearTimeout(SY.pushT); SY.pushT = setTimeout(syncPush, 2000); }
+const syPending = () => { let n = 0; if (SY) for (const t in SY.dirty) n += Object.keys(SY.dirty[t]).length; return n; };
+async function syncPush(){
+  if (!SY || !SY.on || !SY.db || !SY.ready || SY.busy) return;
+  if (!syPending()) return;
+  const fs = SY.fs, docs = {}, sent = [];
+  for (const t in SY.dirty){
+    const T = SY_TABLES[t], keys = Object.keys(SY.dirty[t]); if (!keys.length) continue;
+    if (!T){ delete SY.dirty[t]; continue; }
+    const cur = T.get() || {}, stp = syT(SY.stamp, t);
+    for (const k of keys){
+      const d = T.doc(k), doc = docs[d] || (docs[d] = {}), tb = doc[t] || (doc[t] = {});
+      const t0 = stp[k] || Date.now(); stp[k] = t0;
+      tb[k] = {v: k in cur ? JSON.stringify(cur[k]) : null, t: t0};
+      sent.push([t, k, t0]);
+    }
+  }
+  SY.busy = true; syncStatus();
+  try {
+    const ids = Object.keys(docs);
+    for (let i = 0; i < ids.length; i += 400){
+      const b = fs.writeBatch(SY.db);
+      ids.slice(i, i + 400).forEach(id => b.set(fs.doc(SY.db, 'sync', SY.code, 'd', id), docs[id], {merge: true}));
+      await b.commit();
+    }
+    if (!SY.on) return;
+    sent.forEach(([t, k, t0]) => { if (SY.stamp[t] && SY.stamp[t][k] === t0 && SY.dirty[t]) delete SY.dirty[t][k]; });
+    SY.err = ''; SY.last = Date.now(); sySaveState();
+  } catch(e){
+    SY.err = (e && e.code) || 'push';
+    setTimeout(syncPushSoon, 30000);
+  } finally {
+    if (SY) SY.busy = false;
+    syncStatus();
+    if (SY && SY.on && syPending()) syncPushSoon();
+  }
+}
+async function syncStart(){
+  if (!SY || !SY.on || SY.db || SY.loading) return;
+  SY.loading = true; syncStatus();
+  try {
+    const [appMod, fs] = await Promise.all([import(FB_SDK + 'firebase-app.js'), import(FB_SDK + 'firebase-firestore.js')]);
+    if (!SY.on) return;
+    const app = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(FB_CONFIG);
+    SY.fs = fs; SY.db = fs.getFirestore(app); SY.err = '';
+    const code = SY.code;
+    SY.unsub = fs.onSnapshot(fs.collection(SY.db, 'sync', code, 'd'), snap => {
+      if (!SY.on || SY.code !== code) return;
+      const list = snap.docChanges().filter(c => c.type !== 'removed').map(c => c.doc.data());
+      const got = list.length ? syncMerge(list) : 0;
+      if (!snap.metadata.fromCache){ SY.err = ''; SY.last = Date.now(); }
+      if (!SY.ready){ SY.ready = true; if (SY.hello){ SY.hello = false; toast(got ? '다른 기기의 기록을 받아 합쳤어요' : '동기화를 켰어요'); } }
+      syncPush(); syncStatus();
+    }, e => { SY.err = (e && e.code) || 'listen'; syncStatus(); syncStop(); setTimeout(syncStart, 30000); });
+  } catch(e){
+    SY.err = 'load'; SY.db = null;   // 인터넷이 없어서 동기화 부품을 못 받음 → 연결되면 다시 시도
+  } finally { if (SY) SY.loading = false; syncStatus(); }
+}
+function syncStop(){
+  if (!SY) return;
+  try { SY.unsub && SY.unsub(); } catch(e){}
+  try { SY.db && SY.fs.terminate(SY.db); } catch(e){}
+  SY.unsub = null; SY.db = null; SY.ready = false; SY.busy = false;
+}
+function syncEnable(code, hello){
+  syncStop();
+  SY.on = true; SY.code = code; SY.base = {}; SY.stamp = {}; SY.dirty = {}; SY.fresh = true; SY.err = ''; SY.hello = hello;
+  flushPut(); syncScan(); sySaveState(); syncStart();
+}
+function syncDisable(){
+  syncStop(); clearTimeout(SY.pushT); clearTimeout(SY.scanT);
+  SY.on = false; SY.code = ''; SY.base = {}; SY.stamp = {}; SY.dirty = {};
+  try { localStorage.removeItem('jv2_syncst'); } catch(e){}
+  sySaveState(); syncStatus();
+}
+function syncStatusText(){
+  if (!SY || !SY.on) return '꺼짐';
+  if (SY.err === 'permission-denied') return '서버가 거절함 (규칙 확인 필요)';
+  if (SY.err && !navigator.onLine) return '인터넷 없음 · 연결되면 맞춰요';
+  if (SY.err) return '연결 안 됨 · 잠시 후 다시 시도';
+  if (!SY.ready) return '연결 중…';
+  const n = syPending();
+  if (n) return SY.busy ? `기록 ${num(n)}개 보내는 중…` : `보낼 기록 ${num(n)}개`;
+  if (SY.last){ const d = new Date(SY.last); return `켜짐 · ${pad2(d.getHours())}:${pad2(d.getMinutes())}에 맞춤`; }
+  return '켜짐';
+}
+function syncStatus(){ const b = $('#syncBtn'); if (b) b.textContent = '기기 동기화 · ' + syncStatusText(); }
+async function openSync(){
+  if (SY.on){
+    const v = await modal('기기 동기화', `동기화 코드<br><b style="font-size:20px;letter-spacing:1px;color:var(--ink);user-select:all">${syFmt(SY.code)}</b><br>다른 기기에서 '코드 입력'을 누르고 이 코드를 넣으면 같은 기록을 써요. 코드를 아는 사람은 기록을 볼 수 있으니 남에게 알려 주지 마세요.<br><br>상태: ${esc(syncStatusText())}`,
+      [['코드 복사', 'copy', 'pri'], ['동기화 끄기', 'off'], ['닫기', null]]);
+    if (v === 'copy'){ try { await navigator.clipboard.writeText(syFmt(SY.code)); toast('코드를 복사했어요'); } catch(e){ toast('복사가 안 돼요. 코드를 길게 눌러 복사하세요'); } }
+    if (v === 'off'){
+      const ok = await modal('동기화를 끌까요?', '이 기기의 기록은 그대로 남아요. 이후 이 기기에서 푼 기록은 다른 기기로 가지 않아요.', [['끄기', 1, 'red'], ['취소', null]]);
+      if (ok){ syncDisable(); toast('동기화를 껐어요'); }
+    }
+    return;
+  }
+  const v = await modal('기기 동기화', '아이패드와 폰에 같은 동기화 코드를 넣으면 학습 기록이 자동으로 맞춰져요.<br>· 처음 켜는 기기: <b>새 코드 만들기</b><br>· 두 번째 기기: <b>코드 입력</b> (첫 기기에 나온 코드를 넣기)<br>기록은 지우지 않고 합쳐요. 같은 단어는 더 최근에 푼 쪽이 남아요.',
+    [['새 코드 만들기', 'new', 'pri'], ['코드 입력', 'enter'], ['취소', null]]);
+  if (v === 'new'){
+    syncEnable(syNewCode(), true);
+    syncStatus(); openSync();
+  } else if (v === 'enter'){
+    const go = await modal('동기화 코드 입력', '첫 기기에서 만든 코드를 넣으세요. (대소문자, 하이픈은 상관없어요)<br><input id="syIn" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" style="width:100%;box-sizing:border-box;margin-top:10px;padding:12px;font-size:17px;border:2px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);letter-spacing:1px">',
+      [['연결', 1, 'pri'], ['취소', null]]);
+    const raw = ($('#syIn') && $('#syIn').value) || '';
+    if (!go) return;
+    const code = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!SY_RE.test(code)){ modal('코드가 맞지 않아요', '20글자 코드(하이픈 제외)를 다시 확인해 주세요.', [['확인', 1, 'pri']]); return; }
+    syncEnable(code, true); syncStatus();
+    toast('연결하는 중이에요…');
+  }
+}
+function syncInit(){
+  let cfg = {}, st = {};
+  try { cfg = JSON.parse(localStorage.getItem('jv2_sync')) || {}; } catch(e){}
+  try { st = JSON.parse(localStorage.getItem('jv2_syncst')) || {}; } catch(e){}
+  SY = {on: !!(cfg.on && SY_RE.test(cfg.code || '')), code: cfg.code || '', base: st.base || {}, stamp: st.stamp || {}, dirty: st.dirty || {},
+        fresh: false, db: null, fs: null, ready: false, busy: false, err: '', last: 0};
+  syncStatus();
+  if (!SY.on) return;
+  syncScan(); syncStart();
+}
+window.addEventListener('online', () => { if (SY && SY.on){ if (!SY.db) syncStart(); else syncPushSoon(); } });
+window.addEventListener('pagehide', () => { if (SY && SY.on) syncScan(); });
+document.addEventListener('visibilitychange', () => { if (!SY || !SY.on) return; if (document.visibilityState === 'hidden') syncScan(); else if (!SY.db) syncStart(); });
+
 load(); renderRate(); renderHome();
 srsLoad(); srsMigrate(); srsRepair(); histMigrate(); segRecover(); segStart(); tickTimer();
+syncInit();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !/claude\.ai|claudeusercontent/.test(location.host)) navigator.serviceWorker.register('sw.js').then(reg => {
   const chk = () => reg.update().catch(() => {});
   chk(); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') chk(); });   // 앱을 다시 열 때마다 새 버전이 있는지 확인
