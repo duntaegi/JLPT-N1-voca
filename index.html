@@ -654,8 +654,9 @@ body.padB .mark{bottom:var(--padh)}
 body.padB .wrap{padding-bottom:calc(16px + var(--padh))}
 body.padB .markbar{bottom:var(--padh)}
 /* ---- v104: 문제 위 오답노트 버튼 · 키보드 번호 표시 · 자주 틀리는 단어 기준 ---- */
-.qtop .row{align-items:center}
-.qleft{display:flex;align-items:center;gap:14px;min-width:0}
+.qtop .row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center}   /* 가운데 버튼이 양옆 글자 길이와 상관없이 정확히 가운데에 오도록 3칸 */
+.qtop .qcount{justify-self:start}
+.qtop .score{justify-self:end}
 .qnote{flex:none;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 6px 0 12px;border-radius:99px;background:var(--paper);color:var(--ink);box-shadow:0 2px 0 rgba(15,53,80,.2);font-size:13.5px;font-weight:800;white-space:nowrap}
 .qnote .qn-ic{font-size:14px;line-height:1}
 .qnote em{font-style:normal;min-width:22px;height:22px;padding:0 6px;border-radius:99px;background:var(--ng);color:#fff;font-size:12.5px;font-weight:800;display:inline-grid;place-items:center;font-variant-numeric:tabular-nums}
@@ -720,7 +721,7 @@ body.padB .markbar{bottom:var(--padh)}
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
     <div class="hsub">
-      <p><span id="appVer">v105</span> · 4지선다 · 카드 · 손글씨로 외우는 N1 단어</p>
+      <p><span id="appVer">v106</span> · 4지선다 · 카드 · 손글씨로 외우는 N1 단어</p>
       <button type="button" id="syncChip" class="schip off" onclick="openSync()" aria-live="polite" aria-label="기기 동기화 상태"><i></i><span id="syncChipTxt">동기화 꺼짐</span></button>
     </div>
     <div class="prog">
@@ -935,9 +936,9 @@ body.padB .markbar{bottom:var(--padh)}
     <button class="icon" id="sndBtn" onclick="toggleSound()" aria-label="소리 켜기/끄기">🔔</button>
   </div>
   <div class="qtop">
-    <div class="row"><span class="qleft"><span><b id="qNum">1</b> / <span id="qTot">1</span></span>
-      <span class="score"><span class="o">○ <span id="scO">0</span></span><span class="x">✕ <span id="scX">0</span></span></span></span>
-      <button type="button" class="qnote" id="qNoteGo" aria-label="전체 오답노트로 바로 가기"><span class="qn-ic">📒</span><span>오답노트</span><em id="qNoteN">0</em></button></div>
+    <div class="row"><span class="qcount"><b id="qNum">1</b> / <span id="qTot">1</span></span>
+      <button type="button" class="qnote" id="qNoteGo" aria-label="전체 오답노트로 바로 가기"><span class="qn-ic">📒</span><span>오답노트</span><em id="qNoteN">0</em></button>
+      <span class="score"><span class="o">○ <span id="scO">0</span></span><span class="x">✕ <span id="scX">0</span></span></span></div>
     <div class="track"><i id="qBar" style="width:0"></i></div>
   </div>
   <div class="wrap" id="qMain">
@@ -2541,7 +2542,7 @@ function updateTop(){
   drawTicks($('#qBar').parentElement, S.ids.length);
   $('#scO').textContent = S.o; $('#scX').textContent = S.x;
   const nn = words.filter(isNote).length;   // 문제 위쪽 줄의 '전체 오답노트' 버튼: 지금 쌓인 오답 수 (전체 오답노트를 푸는 중에는 숨김)
-  $('#qNoteN').textContent = nn; $('#qNoteGo').style.display = Q.key === 'allnote' ? 'none' : ''; $('#qNoteGo').classList.toggle('zero', !nn);
+  $('#qNoteN').textContent = nn; $('#qNoteGo').style.visibility = Q.key === 'allnote' ? 'hidden' : ''; $('#qNoteGo').classList.toggle('zero', !nn);
 }
 let scrT = 0;
 function nextQuestion(){
