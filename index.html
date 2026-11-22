@@ -658,8 +658,11 @@ body.padB .markbar{bottom:var(--padh)}
 .qtop .qcount{justify-self:start}
 .qtop .score{justify-self:end}
 .qnote{flex:none;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 6px 0 12px;border-radius:99px;background:var(--paper);color:var(--ink);box-shadow:0 2px 0 rgba(15,53,80,.2);font-size:13.5px;font-weight:800;white-space:nowrap}
-.qnote .qn-ic{font-size:14px;line-height:1}
-.qnote em{font-style:normal;min-width:22px;height:22px;padding:0 6px;border-radius:99px;background:var(--ng);color:#fff;font-size:12.5px;font-weight:800;display:inline-grid;place-items:center;font-variant-numeric:tabular-nums}
+.qnote .qn-ic{flex:none;display:block}
+/* 글자는 윗줄·아랫줄의 빈 여백(폰트마다 다름)을 잘라 내고 실제 글자 높이(대문자 높이~기준선)만 남겨서, 어느 기기에서든 위아래 한가운데에 옴 */
+.qnote .qn-tx,.qnote em i{display:block;line-height:1;text-box:trim-both cap alphabetic}
+.qnote em{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;border-radius:99px;background:var(--ng);color:#fff;font-style:normal;font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums}
+.qnote em i{font-style:normal}
 .qnote.zero{opacity:.8}
 .qnote.zero em{background:var(--chip);color:var(--sub)}
 .qnote:active{transform:translateY(2px);box-shadow:none}
@@ -721,7 +724,7 @@ body.padB .markbar{bottom:var(--padh)}
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
     <div class="hsub">
-      <p><span id="appVer">v106</span> · 4지선다 · 카드 · 손글씨로 외우는 N1 단어</p>
+      <p><span id="appVer">v107</span> · 4지선다 · 카드 · 손글씨로 외우는 N1 단어</p>
       <button type="button" id="syncChip" class="schip off" onclick="openSync()" aria-live="polite" aria-label="기기 동기화 상태"><i></i><span id="syncChipTxt">동기화 꺼짐</span></button>
     </div>
     <div class="prog">
@@ -937,7 +940,7 @@ body.padB .markbar{bottom:var(--padh)}
   </div>
   <div class="qtop">
     <div class="row"><span class="qcount"><b id="qNum">1</b> / <span id="qTot">1</span></span>
-      <button type="button" class="qnote" id="qNoteGo" aria-label="전체 오답노트로 바로 가기"><span class="qn-ic">📒</span><span>오답노트</span><em id="qNoteN">0</em></button>
+      <button type="button" class="qnote" id="qNoteGo" aria-label="전체 오답노트로 바로 가기"><svg class="qn-ic" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="2.5" y="1.5" width="11" height="13" rx="2" fill="#F5C242" stroke="#C98F12"/><rect x="2.5" y="1.5" width="3.2" height="13" rx="1.6" fill="#E3A51D"/><path d="M8 5.6h3.6M8 8.2h3.6M8 10.8h2.4" stroke="#B87A0B" stroke-linecap="round"/></svg><span class="qn-tx">오답노트</span><em><i id="qNoteN">0</i></em></button>
       <span class="score"><span class="o">○ <span id="scO">0</span></span><span class="x">✕ <span id="scX">0</span></span></span></div>
     <div class="track"><i id="qBar" style="width:0"></i></div>
   </div>
