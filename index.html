@@ -653,6 +653,29 @@ body.padR .mark{right:var(--padw)}   /* 정답 ○/✕ 표시는 메모장을 �
 body.padB .mark{bottom:var(--padh)}
 body.padB .wrap{padding-bottom:calc(16px + var(--padh))}
 body.padB .markbar{bottom:var(--padh)}
+/* ---- v104: 문제 위 오답노트 버튼 · 키보드 번호 표시 · 자주 틀리는 단어 기준 ---- */
+.qnote{flex:none;display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 11px;border-radius:99px;background:rgba(255,255,255,.55);border:1.5px solid rgba(255,255,255,.8);color:var(--onbar);font-size:12.5px;font-weight:800;white-space:nowrap}
+.qnote b{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--ng);color:#fff;font-size:11.5px;display:inline-grid;place-items:center}
+.qnote.zero b{background:rgba(15,53,80,.25)}
+.qnote:active{transform:translateY(1px)}
+.khint{display:none;text-align:center;color:var(--sub);font-size:12px;margin:2px 0 0}
+@media (hover:hover) and (pointer:fine){
+  .khint{display:block}
+  #modal .mb .btn[data-k]::before{content:attr(data-k);display:inline-grid;place-items:center;width:20px;height:20px;margin-right:8px;border-radius:6px;background:rgba(0,0,0,.08);font-size:12px;font-weight:800}
+  #modal .mb .btn.pri[data-k]::before{background:rgba(255,255,255,.35)}
+  #typePop .trow[data-n]::after{content:attr(data-n);margin-left:auto;flex:none;width:22px;height:22px;display:grid;place-items:center;border-radius:6px;background:var(--chip);color:var(--sub);font-size:12px;font-weight:800}
+}
+.freqchips{flex-wrap:nowrap;overflow-x:auto;position:relative;scroll-snap-type:x proximity;padding:2px 2px 6px;margin:0 -2px;scrollbar-width:none}
+.freqchips::-webkit-scrollbar{display:none}
+.freqchips button{flex:0 0 auto;min-width:84px;scroll-snap-align:center}
+@media (pointer:fine){ .freqchips{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));overflow:visible;padding-bottom:2px} .freqchips button{min-width:0} }
+.fstep{display:flex;align-items:center;gap:10px;margin-top:8px;padding:8px;background:var(--paper);border:1px solid var(--line);border-radius:16px}
+.fstep button{flex:none;width:48px;height:48px;border-radius:12px;background:var(--chip);color:var(--ink);font-size:26px;font-weight:700;line-height:1}
+.fstep button:active:not(:disabled){transform:translateY(1px)}
+.fstep button:disabled{opacity:.35}
+.fsv{flex:1;text-align:center}
+.fsv b{display:block;font-size:22px}
+.fsv small{font-size:12px;color:var(--sub)}
 /* ---- 동기화 상태 칩 (홈 머리말) ---- */
 .hsub{display:flex;align-items:center;gap:8px;margin-top:4px}
 .hsub p{margin:0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -693,7 +716,7 @@ body.padB .markbar{bottom:var(--padh)}
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
     <div class="hsub">
-      <p><span id="appVer">v103</span> · 4지선다 · 카드 · 손글씨로 외우는 N1 단어</p>
+      <p><span id="appVer">v104</span> · 4지선다 · 카드 · 손글씨로 외우는 N1 단어</p>
       <button type="button" id="syncChip" class="schip off" onclick="openSync()" aria-live="polite" aria-label="기기 동기화 상태"><i></i><span id="syncChipTxt">동기화 꺼짐</span></button>
     </div>
     <div class="prog">
@@ -827,6 +850,7 @@ body.padB .markbar{bottom:var(--padh)}
   <div class="wrap">
     <div class="srsnote"><b>틀린 횟수 순위</b><p>문제에서 틀린 횟수를 단어마다 세어 둔 기록이에요. 아래에서 기준을 고르면 그만큼 이상 틀린 단어만 모아서 보고, 바로 문제로 풀 수 있어요.</p></div>
     <div class="freqchips" id="freqChips"></div>
+    <div class="fstep"><button type="button" id="fsDn" aria-label="기준 1 낮추기">−</button><div class="fsv"><b id="fsVal">2번 이상</b><small>직접 고르기 · 가장 많이 틀린 단어는 <span id="fsMax">0</span>번</small></div><button type="button" id="fsUp" aria-label="기준 1 높이기">+</button></div>
     <div class="csum" id="freqSum" style="margin-top:12px"></div>
     <div class="tbtns" style="margin-bottom:12px">
       <button class="tb main" id="freqQuiz2"><b>문제로 풀기</b><small>많이 틀린 단어부터</small></button>
@@ -908,6 +932,7 @@ body.padB .markbar{bottom:var(--padh)}
   </div>
   <div class="qtop">
     <div class="row"><span><b id="qNum">1</b> / <span id="qTot">1</span></span>
+      <button type="button" class="qnote" id="qNoteGo" aria-label="전체 오답노트로 바로 가기">📒 오답노트 <b id="qNoteN">0</b></button>
       <span class="score"><span class="o">○ <span id="scO">0</span></span><span class="x">✕ <span id="scX">0</span></span></span></div>
     <div class="track"><i id="qBar" style="width:0"></i></div>
   </div>
@@ -1279,9 +1304,9 @@ function modal(title, msg, btns){
     m.querySelector('.mt').textContent = title;
     m.querySelector('.mm').innerHTML = msg;
     const b = m.querySelector('.mb'); b.innerHTML = '';
-    btns.forEach(([label, val, cls]) => {
+    btns.forEach(([label, val, cls], i) => {
       const e = document.createElement('button');
-      e.className = 'btn ' + (cls || ''); e.textContent = label;
+      e.className = 'btn ' + (cls || ''); e.textContent = label; e.dataset.k = i + 1;
       e.onclick = () => { m.classList.remove('open'); modalRes = null; res(val); };
       b.appendChild(e);
     });
@@ -1615,11 +1640,21 @@ function renderFreqCard(){
   $('#freqSub').textContent = list.length ? `${freqMin}번 이상 틀린 단어예요 · 가장 많이 틀린 건 ${top.kanji || top.kana} (${stats[top.id].w}번)` : `${freqMin}번 이상 틀린 단어가 아직 없어요`;
   $('#freqQuiz').disabled = $('#freqCardBtn').disabled = !list.length;
 }
-function openFreq(){ freqShown = 100; renderFreq(); show('freq'); }
+function openFreq(){ freqShown = 100; renderFreq(); show('freq'); centerFreqChip(); }
+function centerFreqChip(){   // 폰에서는 칩이 옆으로 밀리는 한 줄이라, 지금 고른 기준이 가운데 보이게
+  const ch = $('#freqChips'), on = ch.querySelector('.on'); if (on && ch.clientWidth) ch.scrollLeft = on.offsetLeft - (ch.clientWidth - on.offsetWidth) / 2;
+}
+const freqMax = () => { let m = 0; for (const w of words){ const s = stats[w.id]; if (s && s.w > m) m = s.w; } return m; };
+const FREQ_STEPS = [1, 2, 3, 5, 7, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200];
+function setFreq(m){ freqMin = Math.max(1, Math.min(m, Math.max(1, freqMax()))); put('jv2_freqmin', freqMin); freqShown = 100; renderFreq(); }
 function renderFreq(){
-  const list = freqList(freqMin), levels = [1, 2, 3, 5];
-  $('#freqChips').innerHTML = levels.map(m => `<button type="button" data-m="${m}" class="${m === freqMin ? 'on' : ''}">${m}번 이상<small>${freqList(m).length}개</small></button>`).join('');
-  $('#freqChips').querySelectorAll('button').forEach(b => b.onclick = () => { freqMin = +b.dataset.m; put('jv2_freqmin', freqMin); freqShown = 100; renderFreq(); });
+  const max = freqMax(); if (max && freqMin > max) freqMin = max;
+  const list = freqList(freqMin), levels = FREQ_STEPS.filter(m => m <= Math.max(1, max));   // 가장 많이 틀린 횟수까지 이어서 늘어남
+  $('#freqChips').innerHTML = levels.map(m => `<button type="button" data-m="${m}" class="${m === freqMin ? 'on' : ''}">${m}번 이상<small>${num(freqList(m).length)}개</small></button>`).join('');
+  $('#freqChips').querySelectorAll('button').forEach(b => b.onclick = () => setFreq(+b.dataset.m));
+  centerFreqChip();
+  $('#fsVal').textContent = `${freqMin}번 이상`; $('#fsMax').textContent = max;
+  $('#fsDn').disabled = freqMin <= 1; $('#fsUp').disabled = freqMin >= Math.max(1, max);
   let tot = 0; list.forEach(w => tot += stats[w.id].w);
   $('#freqSum').innerHTML = `<div class="stat"><b>${list.length}개</b><span>${freqMin}번 이상 틀린 단어</span></div><div class="stat"><b>${tot}번</b><span>이 단어들을 틀린 횟수</span></div>`;
   $('#freqQuiz2').disabled = $('#freqCard2').disabled = !list.length;
@@ -1630,6 +1665,8 @@ function renderFreq(){
   $('#freqMore').textContent = `더 보기 (${Math.min(100, list.length - freqShown)}개)`;
 }
 $('#freqMore').onclick = () => { freqShown += 100; renderFreq(); };
+$('#fsDn').onclick = () => setFreq(freqMin - 1);
+$('#fsUp').onclick = () => setFreq(freqMin + 1);
 async function startFreq(mode){
   const list = freqList(freqMin); if (!list.length) return toast('틀린 단어가 아직 없어요');
   const label = `자주 틀리는 단어 (${freqMin}번 이상)`, n = list.length;
@@ -1783,12 +1820,39 @@ function actHTML(k){
 
 /* ---------- 키보드(블루투스) 단축키 ---------- */
 /* 문제: 1~4 보기 선택 · Space/Enter/→ 다음 · H 헷갈려요 · Esc 나가기 / 카드: Space/Enter 뒤집기 · → 알았어요 · ← 몰랐어요 · B 이전 · Esc 나가기 */
+let doneAt = 0;
+/* 안내창·유형 고르기 창의 키보드: 숫자=그 번호 버튼, Enter·Space=눈에 띄는(파란) 버튼, Esc=닫기(취소) */
+function modalKeys(e, mo){
+  const k = e.key;
+  if (mo.id === 'typePop'){
+    if (/^[1-4]$/.test(k)){ e.preventDefault(); if (e.repeat) return; const b = mo.querySelectorAll('#tList .trow')[+k - 1]; if (b) b.click(); return; }
+    if (k === 'Enter' || k === ' '){ e.preventDefault(); if (e.repeat) return; const b = $('#tStart'); if (b && !b.disabled) b.click(); return; }
+    if (k === 'Escape'){ e.preventDefault(); $('#tCancel').click(); }
+    return;
+  }
+  if (mo.id !== 'modal') return;
+  const bs = [...mo.querySelectorAll('.mb button')];
+  if (/^[1-9]$/.test(k)){ e.preventDefault(); if (e.repeat) return; const b = bs[+k - 1]; if (b && !b.disabled) b.click(); return; }
+  if (k === 'Enter' || k === ' '){ e.preventDefault(); if (e.repeat) return; const b = mo.querySelector('.mb .pri'); if (b) b.click(); return; }
+  if (k === 'Escape'){ e.preventDefault(); closeModal(); }
+}
 document.addEventListener('keydown', e => {
   if (e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
   const t = e.target, tag = t && t.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
-  if (document.querySelector('.modal.open') || $('#write').classList.contains('on')) return;
+  const mo = document.querySelector('.modal.open');
+  if (mo){ modalKeys(e, mo); return; }
+  if ($('#write').classList.contains('on')) return;
   const k = e.key, inQuiz = $('#quiz').classList.contains('on'), go = fn => { e.preventDefault(); if (e.repeat && !inQuiz) return; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); fn(); };
+  if (inQuiz && $('#qMain').style.display === 'none'){   // 문제를 다 푼 뒤 결과 화면
+    if (k !== 'Enter' && k !== ' ' && k !== 'Escape') return;
+    e.preventDefault();
+    if (e.repeat || Date.now() - doneAt < 600) return;   // 마지막 문제에서 누른 Enter가 그대로 따라 눌리는 일을 막음
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    if (k === 'Escape'){ const b = $('#dHome'); if (b) b.click(); return; }
+    const b = $('#qDone .next:not(.ghost)'); if (b) b.click();   // Enter·Space: 맨 위의 눈에 띄는 버튼 (오답노트 이어서 하기 · 오늘 복습하러 가기 등)
+    return;
+  }
   if ($('#quiz').classList.contains('on') && $('#qMain').style.display !== 'none'){
     if (k === 'Tab'){ e.preventDefault(); const bar = $('#quiz .bar'), bh = bar ? bar.getBoundingClientRect().bottom : 0;   // 스페이스바로 내려가는 만큼 위로 올라감 (위쪽 바에 가려지는 부분은 빼 줌)
       smoothTo(Math.max(0, window.scrollY - Math.max(120, window.innerHeight - bh - 40)), 300); return; }
@@ -2222,7 +2286,7 @@ let qTypes = (() => { const v = get('jv2_qtypes', ['rand']); return Array.isArra
 function askTypes(init){
   return new Promise(res => {
     const pop = $('#typePop'); let sel = new Set();   // 열 때마다 아무것도 체크되지 않은 상태로 시작
-    const draw = () => { $('#tList').innerHTML = TYPE_LIST.map(([id, name, sub]) => `<button type="button" class="trow ${sel.has(id) ? 'on' : ''}" data-id="${id}"><span class="tbox">${sel.has(id) ? '✓' : ''}</span><span>${name}${sub ? `<small>${sub}</small>` : ''}</span></button>`).join(''); $('#tStart').disabled = !sel.size; $('#tStart').textContent = sel.size ? '시작' : '유형을 하나 이상 골라 주세요'; };
+    const draw = () => { $('#tList').innerHTML = TYPE_LIST.map(([id, name, sub], i) => `<button type="button" class="trow ${sel.has(id) ? 'on' : ''}" data-id="${id}" data-n="${i + 1}"><span class="tbox">${sel.has(id) ? '✓' : ''}</span><span>${name}${sub ? `<small>${sub}</small>` : ''}</span></button>`).join(''); $('#tStart').disabled = !sel.size; $('#tStart').textContent = sel.size ? '시작' : '유형을 하나 이상 골라 주세요'; };
     draw();
     $('#tList').onclick = e => {
       const b = e.target.closest('.trow'); if (!b) return; const id = b.dataset.id;
@@ -2262,6 +2326,10 @@ function runSession(key){
   $('#qMain').style.display = ''; $('#qDone').style.display = 'none';
   show('quiz'); nextQuestion();
 }
+$('#qNoteGo').onclick = () => {   // 풀던 문제는 그대로 저장돼 있어서(나갔다가 이어서 풀기) 홈으로 안 나가고 바로 전체 오답노트로
+  const l = words.filter(isNote); if (!l.length) return toast('오답노트가 비었어요 👍');
+  begin('allnote', l, '전체 오답노트', 'note');
+};
 function quitQuiz(){
   const S = sessions[Q.key];
   if (curDay && Q.key.startsWith('d')){ renderDay(); show('day'); } else goHome();
@@ -2468,6 +2536,8 @@ function updateTop(){
   $('#qBar').style.width = (S.idx / S.ids.length * 100) + '%';
   drawTicks($('#qBar').parentElement, S.ids.length);
   $('#scO').textContent = S.o; $('#scX').textContent = S.x;
+  const nn = words.filter(isNote).length;   // 문제 위쪽 줄의 '전체 오답노트' 버튼: 지금 쌓인 오답 수 (전체 오답노트를 푸는 중에는 숨김)
+  $('#qNoteN').textContent = nn; $('#qNoteGo').style.display = Q.key === 'allnote' ? 'none' : ''; $('#qNoteGo').classList.toggle('zero', !nn);
 }
 let scrT = 0;
 function nextQuestion(){
@@ -2796,6 +2866,7 @@ function finishSession(){
   const noteDone = dayCtx && S.kind === 'note' && !dayWords(curDay).some(isNote);   // 오답노트를 다 끝냄(남은 오답 없음) → 홈으로만
   const allCtx = !dayCtx && S.kind === 'note';   // 일차 밖에서 시작한 오답노트·다시 풀기(복습·자주 틀리는 단어·전체 오답노트 등)는 전부 '전체 오답노트'로 이어 줌
   const noteLeft = (S.kind === 'note' && !wrong.length) ? (dayCtx ? dayWords(curDay).filter(isNote).length : allCtx ? words.filter(isNote).length : 0) : 0;   // 틀린 게 없을 때만: 남은 오답노트를 바로 이어서 하기 (틀린 게 있으면 '다시 풀기'가 먼저)
+  doneAt = Date.now();
   const revGo = (allCtx && !wrong.length && !noteLeft) ? reviewTarget() : null;   // 전체 오답노트를 다 끝냈으면(남은 오답 없음) 복습하러 바로 가기
   const d = $('#qDone'); d.style.display = '';
   const icon = {learn:'🌸', review:'📖', note:'🎯'}[S.kind] || '🌸';
@@ -2809,7 +2880,8 @@ function finishSession(){
     ${noteLeft ? `<button class="next" id="dNoteGo">📝 오답노트 이어서 하기 (${noteLeft}개)</button>` : ''}
     ${revGo ? `<button class="next" id="dRevGo">${revGo.label}</button><p class="srsp" style="text-align:center;margin:-4px 0 10px">${esc(revGo.hint)}</p>` : ''}
     ${hm.length ? `<button class="next ghost" id="dHard">🤔 헷갈려요 ${hm.length}개만 풀기</button>` : ''}
-    ${noteDone ? `<button class="next ghost" id="dHome">🏠 홈으로</button>` : dayCtx ? `<button class="next ghost" id="dHome">${dayLabel(curDay)}로 돌아가기</button><button class="next ghost" id="dGoHome" style="margin-top:0">🏠 홈으로</button>` : `<button class="next ghost" id="dHome">홈으로</button>`}`;
+    ${noteDone ? `<button class="next ghost" id="dHome">🏠 홈으로</button>` : dayCtx ? `<button class="next ghost" id="dHome">${dayLabel(curDay)}로 돌아가기</button><button class="next ghost" id="dGoHome" style="margin-top:0">🏠 홈으로</button>` : `<button class="next ghost" id="dHome">홈으로</button>`}
+    <p class="khint">Enter · Space = 맨 위 버튼 &nbsp;·&nbsp; Esc = 홈으로</p>`;
   const keepDay = async k => { if (sessions[k]){ if (dayCtx) sessions[k].fromDay = true; if (allCtx) sessions[k].fromAll = true; saveSessions(); } };
   if (wrong.length) $('#dWrong').onclick = async () => { await begin('retry', wrong.map(id => byId.get(id)), '틀린 단어 다시 풀기', 'note', false, true, null, S.wq || null); keepDay('retry'); };   // 바로 다시 풀 때도 유형을 새로 고름
   if (hm.length) $('#dHard').onclick = async () => { await begin('retryH', hm.map(id => byId.get(id)), '헷갈리는 단어 풀기', 'learn', false, true); keepDay('retryH'); };
