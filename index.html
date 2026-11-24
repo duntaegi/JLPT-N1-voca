@@ -724,7 +724,7 @@ body.padB .markbar{bottom:var(--padh)}
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
     <div class="hsub">
-      <p><span id="appVer">v109</span> · 4지선다 · 카드 · 손글씨로 외우는 N1 단어</p>
+      <p><span id="appVer">v110</span> · 4지선다 · 카드 · 손글씨로 외우는 N1 단어</p>
       <button type="button" id="syncChip" class="schip off" onclick="openSync()" aria-live="polite" aria-label="기기 동기화 상태"><i></i><span id="syncChipTxt">동기화 꺼짐</span></button>
     </div>
     <div class="prog">
@@ -3499,7 +3499,14 @@ const SY_TABLES = {
   marks: {doc: wordDoc, get: () => marks, set: plainSet(() => marks), save: () => saveMarks()},
   edits: {doc: wordDoc, get: () => edits, save: () => { saveEdits(); saveWords(); },
           set: (k, v) => { const w = byId.get(k), old = edits[k]; if (v === undefined){ delete edits[k]; if (w && old) w.meaning = old.o; } else { edits[k] = v; if (w && v.m != null) w.meaning = v.m; } }},
-  rounds: {doc: () => 'meta', get: () => rounds, set: plainSet(() => rounds), save: () => saveRounds()},
+  /* 복습 간격(srsInt)도 기기끼리 맞춤. 서버 규칙이 받아 주는 묶음 이름이 정해져 있어서, 이미 허용된 'rounds' 묶음 안에 특별한 이름('§srsint')으로 같이 실음.
+     간격을 아예 안 바꾼 기본값은 가장 낮은 시각(0)으로 올려서, 직접 바꿔 둔 값이 기본값에 지지 않게 함 */
+  rounds: {doc: () => 'meta',
+           get: () => Object.assign({}, rounds, {[SRS_KEY]: srsInt}),
+           set: (k, v) => { if (k === SRS_KEY){ srsFromRemote(v); return; } if (v === undefined) delete rounds[k]; else rounds[k] = v; },
+           save: () => { delete rounds[SRS_KEY]; saveRounds(); srsRemoteSaved(); },
+           first: (k, v) => k === SRS_KEY ? Date.now() : 1,
+           low: (k, v) => k === SRS_KEY && JSON.stringify(v) === SRS_DEFAULT},
   acts: {doc: () => 'acts', save: () => saveActs(), first: (k, v) => (v && v.t1) || 1,
          get: () => { const m = {}; for (const d in acts) for (const l in acts[d]) m[d + '§' + l] = acts[d][l]; return m; },
          set: (k, v) => { const i = k.indexOf('§'), d = k.slice(0, i), l = k.slice(i + 1); if (v === undefined){ if (acts[d]){ delete acts[d][l]; if (!Object.keys(acts[d]).length) delete acts[d]; } } else (acts[d] || (acts[d] = {}))[l] = v; }},
@@ -3507,7 +3514,20 @@ const SY_TABLES = {
         get: () => { const m = {}; studyLog.forEach(x => { m[String(x.s)] = x.e; }); return m; },
         set: (k, v) => { const s = +k; studyLog = studyLog.filter(x => x.s !== s); if (v !== undefined) studyLog.push({s, e: v}); studyLog.sort((a, b) => a.s - b.s); }}
 };
-const SY_KEYS = new Set(['jv2_stats', 'jv2_marks', 'jv2_edits', 'jv2_rounds', 'jv2_act', 'jv2_log']);
+const SY_KEYS = new Set(['jv2_stats', 'jv2_marks', 'jv2_edits', 'jv2_rounds', 'jv2_act', 'jv2_log', 'jv2_srs']);
+const SRS_KEY = '§srsint', SRS_DEFAULT = '[1,3,7,14,30,60]';
+let srsRemoteChanged = false;
+function srsFromRemote(v){   // 다른 기기에서 바꾼 복습 간격을 받음 (이미 잡힌 복습 날짜는 그 기기가 다시 계산해서 올리므로 여기서는 건드리지 않음)
+  if (!Array.isArray(v) || !v.length || v.length > 10 || !v.every(x => Number.isInteger(x) && x > 0 && x <= 365)) return;
+  if (JSON.stringify(v) === JSON.stringify(srsInt)) return;
+  srsInt = v.slice(); srsRemoteChanged = true;
+}
+function srsRemoteSaved(){
+  if (!srsRemoteChanged) return;
+  srsRemoteChanged = false; put('jv2_srs', {int: srsInt});
+  try { renderSrs(); } catch(e){}
+  toast(`다른 기기에서 바꾼 복습 간격 ${srsInt.join(', ')}일을 적용했어요`);
+}
 var SY = null;   // var: put()이 이 코드보다 먼저 불려도 오류가 나지 않게
 function syHash(s){   // 바뀌었는지만 보면 되므로 짧은 해시로 저장 (cyrb53)
   let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
@@ -3540,8 +3560,10 @@ function syncScan(){
     for (const k in cur){
       const h = syHash(JSON.stringify(cur[k]));
       if (base[k] === h) continue;
+      const first = base[k] === undefined;
       base[k] = h; dirty[k] = 1; n++;
-      stp[k] = SY.fresh ? (T.first ? T.first(k, cur[k]) : 1) : Math.max(now, (stp[k] || 0) + 1);
+      if (first && T.low && T.low(k, cur[k])) stp[k] = 0;
+      else stp[k] = SY.fresh ? (T.first ? T.first(k, cur[k]) : 1) : Math.max(now, (stp[k] || 0) + 1);
     }
     for (const k in base) if (!(k in cur)){ delete base[k]; dirty[k] = 1; n++; stp[k] = Math.max(now, (stp[k] || 0) + 1); }
   }
@@ -3560,9 +3582,12 @@ function syncMerge(list){
       const e = m[k]; if (!e || typeof e.t !== 'number') continue;
       const rv = typeof e.v === 'string' ? e.v : null, rh = rv === null ? null : syHash(rv);
       const lh = base[k] === undefined ? null : base[k], lt = stp[k] || 0;
+      const have = base[k] !== undefined || stp[k] !== undefined;
       if (rh === lh){ if (e.t >= lt){ stp[k] = e.t; delete dirty[k]; } continue; }
-      if (e.t > lt || (e.t === lt && String(rh) > String(lh))){
-        let v; if (rv !== null){ try { v = JSON.parse(rv); } catch(err){ continue; } }
+      let rvv; if (rv !== null){ try { rvv = JSON.parse(rv); } catch(err){ continue; } }
+      const tieWin = () => { if (k === SRS_KEY){ const r = JSON.stringify(rvv) !== SRS_DEFAULT, l = JSON.stringify((T.get() || {})[k]) !== SRS_DEFAULT; if (r !== l) return r; } return String(rh) > String(lh); };
+      if (!have || e.t > lt || (e.t === lt && tieWin())){
+        let v = rvv;
         T.set(k, v);
         if (rh === null) delete base[k]; else base[k] = rh;
         stp[k] = e.t; delete dirty[k]; changed.add(t);
@@ -3593,7 +3618,7 @@ async function syncPush(){
     const cur = T.get() || {}, stp = syT(SY.stamp, t);
     for (const k of keys){
       const d = T.doc(k), doc = docs[d] || (docs[d] = {}), tb = doc[t] || (doc[t] = {});
-      const t0 = stp[k] || Date.now(); stp[k] = t0;
+      const t0 = stp[k] ?? Date.now(); stp[k] = t0;
       tb[k] = {v: k in cur ? JSON.stringify(cur[k]) : null, t: t0};
       sent.push([t, k, t0]);
     }
