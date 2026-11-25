@@ -724,7 +724,7 @@ body.padB .markbar{bottom:var(--padh)}
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
     <div class="hsub">
-      <p><span id="appVer">v110</span> · 4지선다 · 카드 · 손글씨로 외우는 N1 단어</p>
+      <p><span id="appVer">v111</span> · 4지선다 · 카드 · 손글씨로 외우는 N1 단어</p>
       <button type="button" id="syncChip" class="schip off" onclick="openSync()" aria-live="polite" aria-label="기기 동기화 상태"><i></i><span id="syncChipTxt">동기화 꺼짐</span></button>
     </div>
     <div class="prog">
@@ -1909,7 +1909,11 @@ document.addEventListener('keydown', e => {
 /* ---------- navigation ---------- */
 let curDay = null;
 function show(id){ stopSpeak(); closeRate(); if ($('#write').classList.contains('on')) closeWrite(); document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id)); window.scrollTo(0, 0); try { padLayout(); } catch(e){} }
-function goHome(){ renderHome(); show('home'); }
+var updReady = false;   // 공부하는 중에 새 버전이 준비되면 true → 홈으로 나갈 때 새로고침해서 적용
+function goHome(){
+  if (updReady){ try { flushPut(); } catch(e){} location.reload(); return; }
+  renderHome(); show('home');
+}
 window.handleBack = function(){
   if ($('#modal').classList.contains('open')){ closeModal(); return true; }
   if ($('#typePop').classList.contains('open')){ $('#tCancel').click(); return true; }
@@ -2571,7 +2575,7 @@ function updateTop(){
   drawTicks($('#qBar').parentElement, S.ids.length);
   $('#scO').textContent = S.o; $('#scX').textContent = S.x;
   const nn = words.filter(isNote).length;   // 문제 위쪽 줄의 '전체 오답노트' 버튼: 지금 쌓인 오답 수 (전체 오답노트를 푸는 중에는 숨김)
-  $('#qNoteN').textContent = nn; const sk = sessions[Q.key]; $('#qNoteGo').style.visibility = (sk && sk.kind === 'note') ? 'hidden' : '';   // 오답노트를 풀 때는 필요 없으니 자리만 두고 숨김 $('#qNoteGo').classList.toggle('zero', !nn);
+  $('#qNoteN').textContent = nn; const sk = sessions[Q.key]; $('#qNoteGo').style.visibility = (sk && sk.kind === 'note') ? 'hidden' : ''; $('#qNoteGo').classList.toggle('zero', !nn);   // 오답노트를 풀 때는 버튼이 필요 없으니 자리만 두고 숨김
 }
 let scrT = 0;
 function nextQuestion(){
@@ -3758,7 +3762,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !/cl
   let had = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', () => {   // 새 버전이 준비되면: 홈 화면이면 바로 새로고침, 공부 중이면 알림만
     if (!had){ had = true; return; }
-    if ($('#home').classList.contains('on')) location.reload(); else toast('새 버전이 준비됐어요. 홈으로 나가면 적용돼요', 4000);
+    if ($('#home').classList.contains('on')) location.reload(); else { updReady = true; toast('새 버전이 준비됐어요. 홈으로 나가면 적용돼요', 4000); }
   });
 }).catch(() => {});
 
