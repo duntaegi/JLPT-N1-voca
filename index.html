@@ -724,7 +724,7 @@ body.padB .markbar{bottom:var(--padh)}
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
     <div class="hsub">
-      <p><span id="appVer">v112</span> · 4지선다 · 카드 · 손글씨로 외우는 N1 단어</p>
+      <p><span id="appVer">v113</span> · 4지선다 · 카드 · 손글씨로 외우는 N1 단어</p>
       <button type="button" id="syncChip" class="schip off" onclick="openSync()" aria-live="polite" aria-label="기기 동기화 상태"><i></i><span id="syncChipTxt">동기화 꺼짐</span></button>
     </div>
     <div class="prog">
@@ -1538,6 +1538,7 @@ function srsLoad(){
 function srsTouch(s, ok){   // 단어를 한 번 풀거나 카드로 확인할 때마다 호출
   const t = today(), ed = epochDay(t);
   s.h = s.h || []; if (s.h[s.h.length - 1] !== ed) s.h.push(ed);   // 단어를 본 날짜 기록
+  if (s.due && s.due <= t) s.rv = t;   // 복습할 때가 된 단어를 오늘 풀었음 → '오늘 복습' 개수를 어느 기기에서나 똑같이 셈
 
   if (!ok || !s.due){ s.lv = 0; s.due = addDays(t, srsInt[0]); return; }   // 틀렸거나 처음 본 단어: 내일 다시
   if (s.due <= t){ s.lv = Math.min((s.lv || 0) + 1, srsInt.length - 1); s.due = addDays(t, srsInt[s.lv]); }   // 복습일에 맞혔으면 간격을 늘림
@@ -1597,10 +1598,22 @@ function reviewTarget(){
   pruneSession('srs');
   const open = k => sessions[k] && sessions[k].idx < sessions[k].ids.length ? sessions[k] : null;
   const due = dueList(), sS = open('srs'), sT = open('todayRev');
-  if (sS) return {label: '📈 오늘 복습하러 가기', hint: `하던 복습 ${sS.idx} / ${sS.ids.length}에서 이어서 해요`, go: () => startDue(due, '망각곡선 복습', 'quiz')};
+  const r = reviewTally();
+  if (sS) return {label: '📈 오늘 복습하러 가기', hint: `오늘 복습 ${num(r.total)}개 중 ${num(r.left)}개 남았어요`, go: () => startDue(due, '망각곡선 복습', 'quiz')};
   if (sT) return {label: '📖 오늘 복습하러 가기', hint: `하던 ${sT.label} ${sT.idx} / ${sT.ids.length}에서 이어서 해요`, go: () => todayReview()};
-  if (due.length) return {label: '📈 오늘 복습하러 가기', hint: `오늘 복습할 단어가 ${num(due.length)}개 있어요`, go: () => startDue(due, '망각곡선 복습', 'quiz')};
+  if (due.length) return {label: '📈 오늘 복습하러 가기', hint: r.done ? `오늘 복습 ${num(r.total)}개 중 ${num(r.left)}개 남았어요` : `오늘 복습할 단어가 ${num(due.length)}개 있어요`, go: () => startDue(due, '망각곡선 복습', 'quiz')};
   return null;
+}
+const RV_START = '2026-11-25';   // 이 날 앞서 한 복습에는 '오늘 복습함' 표시가 없어서, 이 날 하루만 '전에 본 적 있고 오늘 다시 본 단어'로 어림해서 셈
+function reviewTally(){
+  const t = today(), ed = epochDay(t); let done = 0;
+  for (const id in stats){
+    const s = stats[id]; if (!s || !byId.has(id)) continue;
+    if (s.rv === t) done++;
+    else if (t === RV_START && s.rv === undefined && s.last === t && !(s.due && s.due <= t) && Array.isArray(s.h) && s.h.some(d => d < ed)) done++;
+  }
+  const left = dueList().length;
+  return {done, left, total: done + left};
 }
 async function startDue(list, label, mode){
   const dropped = mode === 'card' ? pruneFlashSave('srs') : pruneSession('srs');   // 멈춰 둔 사이 다른 기기에서 이미 복습한 단어는 남은 목록에서 뺌
@@ -1611,8 +1624,8 @@ async function startDue(list, label, mode){
   }
   if (!list.length && !S) return toast('지금 복습할 단어가 없어요 🎉');
   if (S){
-    const left = S.ids.length - S.idx;
-    const v = await modal('하던 복습이 있어요', `${esc(S.label)}<br>${S.idx}개 풀었고 <b>${left}개</b> 남았어요${dropped ? `<br><small>그 사이 다른 기기에서 복습했거나 날짜가 바뀐 ${dropped}개는 뺐어요</small>` : ''}<br><small>지금 복습할 단어는 모두 ${list.length}개예요</small>`, [['이어서 하기', 'go', 'pri'], ['새로 시작', 'new'], ['취소', null]]);
+    const left = S.ids.length - S.idx, r = reviewTally();
+    const v = await modal('하던 복습이 있어요', `오늘 복습 <b>${num(r.total)}개</b> 중 ${num(r.done)}개 했고 <b>${num(r.left)}개</b> 남았어요${left !== r.left ? `<br><small>이어서 하면 이 기기에서 하던 묶음의 남은 ${num(left)}개를 풀어요</small>` : ''}${dropped ? `<br><small>다른 기기에서 이미 복습한 ${num(dropped)}개는 뺐어요</small>` : ''}`, [['이어서 하기', 'go', 'pri'], ['새로 시작', 'new'], ['취소', null]]);
     if (v === 'go'){
       if (mode === 'card') return resumeFlash('srs');
       if (!S.preset){ const t = await askTypes(S.types || ['rand']); if (!t) return; S.types = t.includes('rand') ? null : t; saveSessions(); }
@@ -1738,7 +1751,10 @@ $('#noteCardBtn').onclick = () => { const l = words.filter(isNote); if (l.length
 function renderSrsCard(){
   const list = dueList(), t = today(), over = list.filter(w => stats[w.id].due < t).length;
   $('#srsCnt').textContent = list.length ? list.length + '개' : '없음';
-  $('#srsSub').textContent = list.length ? (over ? `오늘 ${list.length - over}개 · 밀린 ${over}개` : '오늘 복습할 단어예요') : '오늘은 복습할 단어가 없어요 🎉';
+  const r = reviewTally();
+  $('#srsSub').textContent = list.length
+    ? (r.done ? `오늘 복습 ${num(r.total)}개 중 ${num(r.done)}개 했어요${over ? ` · 밀린 ${over}개 포함` : ''}` : (over ? `오늘 ${list.length - over}개 · 밀린 ${over}개` : '오늘 복습할 단어예요'))
+    : (r.done ? `오늘 복습 ${num(r.done)}개 다 했어요 🎉` : '오늘은 복습할 단어가 없어요 🎉');
   $('#srsQuiz').disabled = $('#srsCardBtn').disabled = !list.length;
 }
 /* 복습 계획 화면 */
@@ -2570,10 +2586,14 @@ function drawTicks(track, total){   // 문제 수와 상관없이 항상 4등분
 function updateTop(){
   const S = sessions[Q.key];
   $('#qMode').textContent = S.label;
-  const shown = Math.min(S.idx + (Q.answered ? 0 : 1), S.ids.length);
-  $('#qNum').textContent = num(shown); $('#qTot').textContent = num(S.ids.length);
-  $('#qBar').style.width = (S.idx / S.ids.length * 100) + '%';
-  drawTicks($('#qBar').parentElement, S.ids.length);
+  let shown = Math.min(S.idx + (Q.answered ? 0 : 1), S.ids.length), done = S.idx, tot = S.ids.length;
+  if (Q.key === 'srs'){   // 오늘 남은 복습을 전부 푸는 묶음이면 기기와 상관없이 '오늘 복습 전체' 기준 (폰에서 하다 아이패드로 넘어와도 같은 숫자)
+    const r = reviewTally();
+    if (S.ids.length - S.idx === r.left && r.total){ shown = r.done + (Q.answered ? 0 : 1); done = r.done; tot = r.total; }
+  }
+  $('#qNum').textContent = num(shown); $('#qTot').textContent = num(tot);
+  $('#qBar').style.width = (done / tot * 100) + '%';
+  drawTicks($('#qBar').parentElement, tot);
   $('#scO').textContent = S.o; $('#scX').textContent = S.x;
   const nn = words.filter(isNote).length;   // 문제 위쪽 줄의 '전체 오답노트' 버튼: 지금 쌓인 오답 수 (전체 오답노트를 푸는 중에는 숨김)
   $('#qNoteN').textContent = nn; const sk = sessions[Q.key]; $('#qNoteGo').style.visibility = (sk && sk.kind === 'note') ? 'hidden' : ''; $('#qNoteGo').classList.toggle('zero', !nn);   // 오답노트를 풀 때는 버튼이 필요 없으니 자리만 두고 숨김
