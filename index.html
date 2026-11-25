@@ -724,7 +724,7 @@ body.padB .markbar{bottom:var(--padh)}
   <div class="hero">
     <h1>JLPT N1 단어장</h1>
     <div class="hsub">
-      <p><span id="appVer">v113</span> · 4지선다 · 카드 · 손글씨로 외우는 N1 단어</p>
+      <p><span id="appVer">v114</span> · 4지선다 · 카드 · 손글씨로 외우는 N1 단어</p>
       <button type="button" id="syncChip" class="schip off" onclick="openSync()" aria-live="polite" aria-label="기기 동기화 상태"><i></i><span id="syncChipTxt">동기화 꺼짐</span></button>
     </div>
     <div class="prog">
@@ -1901,7 +1901,16 @@ document.addEventListener('keydown', e => {
     if (e.repeat || Date.now() - doneAt < 600) return;   // 마지막 문제에서 누른 Enter가 그대로 따라 눌리는 일을 막음
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     if (k === 'Escape'){ const b = $('#dHome'); if (b) b.click(); return; }
-    const b = $('#qDone .next:not(.ghost)'); if (b) b.click();   // Enter: 맨 위의 눈에 띄는 버튼 (오답노트 이어서 하기 · 오늘 복습하러 가기 등)
+    const b = $('#qDone .next:not(.ghost)') || $('#qDone .next'); if (b) b.click();   // Enter: 맨 위의 파란 버튼, 없으면 맨 위 버튼(홈으로 등) (오답노트 이어서 하기 · 오늘 복습하러 가기 등)
+    return;
+  }
+  if ($('#flash').classList.contains('on') && $('#fMain').style.display === 'none'){   // 카드를 다 본 화면: 문제 결과 화면과 같은 규칙
+    if (k !== 'Enter' && k !== 'Escape') return;
+    e.preventDefault();
+    if (e.repeat || Date.now() - doneAt < 600) return;
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    if (k === 'Escape'){ const b = $('#fBack2'); if (b) b.click(); return; }
+    const b = $('#fDone .next:not(.ghost)') || $('#fDone .next'); if (b) b.click();
     return;
   }
   if ($('#quiz').classList.contains('on') && $('#qMain').style.display !== 'none'){
@@ -3072,6 +3081,7 @@ function finishFlash(){
   if (F.key){ delete flashSaves[F.key]; put('jv2_flash', flashSaves); }
   $('#fBar').style.width = '100%';
   $('#fMain').style.display = 'none';
+  doneAt = Date.now();
   const d = $('#fDone'); d.style.display = '';
   const unknownIds = Object.keys(F.marks).filter(id => F.marks[id] === false);
   d.innerHTML = `<div class="done"><div class="big">🃏</div><h3>${esc(F.label)} 완료!</h3><p>${F.ids.length}장</p></div>
@@ -3083,7 +3093,8 @@ function finishFlash(){
     ${unknownIds.length ? `<button class="next" id="fRe">몰랐던 ${unknownIds.length}장 다시 보기</button>` : ''}
     <button class="next ghost" id="fAgain" style="margin-top:0">전체 다시 섞어서 보기</button>
     <button class="next ghost" id="fBack2" style="margin-top:0">${F.back === 'day' ? dayLabel(curDay) + '로 돌아가기' : '돌아가기'}</button>
-    ${F.back === 'day' ? '<button class="next ghost" id="fGoHome" style="margin-top:0">🏠 홈으로</button>' : ''}`;
+    ${F.back === 'day' ? '<button class="next ghost" id="fGoHome" style="margin-top:0">🏠 홈으로</button>' : ''}
+    <p class="khint">Enter = 맨 위 버튼 &nbsp;·&nbsp; Space = 아래로 &nbsp;·&nbsp; Esc = 돌아가기</p>`;
   const all = F.ids.slice(), label = F.label, back = F.back;
   const key = F.key;
   if (unknownIds.length) $('#fRe').onclick = () => { startFlash(unknownIds.map(id => byId.get(id)).filter(Boolean), label, ''); F.back = back; };
